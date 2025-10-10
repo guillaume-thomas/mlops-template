@@ -1,0 +1,30 @@
+name: multistep_example
+
+entry_points:
+    load_data:
+        parameters:
+            path: str
+        command: "uv run load_data.py --path {path}"
+
+    split_train_test:
+        parameters:
+            output_path: str
+        command: "uv run split_train_test.py --output_path {output_path}"
+
+    train:
+        parameters:
+            xtrain: str
+            ytrain: str
+        command: "uv run train.py --x_train_path {xtrain} --y_train_path {ytrain}"
+
+    validation:
+        parameters:
+            model_path: str
+            xtest: str
+            ytest: str
+        command: "uv run validate.py --model_path {model_path} --x_test_path {xtest} --y_test_path {ytest}"
+
+    main:
+        parameters:
+            path: str
+        command: "uv run main.py --input_data_path {path}"

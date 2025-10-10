@@ -1,0 +1,1 @@
+oc get route workspace63dd56f2c99443c4-universal-developer-image-13131-code-redirect-1 -o 'jsonpath={.spec.host}'

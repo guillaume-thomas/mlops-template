@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "fire>=0.7.1",
+    "mlflow>=3.4.0",
+    "scikit-learn>=1.7.2",
+]
 
 [project.scripts]
 hello = "mlops_ses.main:main"

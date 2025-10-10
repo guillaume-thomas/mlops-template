@@ -1,0 +1,18 @@
+FROM python:3.13-slim
+
+#ARG MLFLOW_S3_ENDPOINT_URL
+#ARG AWS_ACCESS_KEY_ID
+#ARG AWS_SECRET_ACCESS_KEY
+
+#ENV MLFLOW_S3_ENDPOINT_URL=${MLFLOW_S3_ENDPOINT_URL}
+#ENV AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+#ENV AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+
+RUN pip install uv
+
+COPY ../../src ./src
+COPY ../../uv.lock ./uv.lock
+COPY ../../pyproject.toml ./pyproject.toml
+
+RUN uv sync
+
