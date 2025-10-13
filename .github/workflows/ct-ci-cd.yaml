@@ -1,0 +1,47 @@
+name: test
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v3
+        with:
+          python-version: 3.11
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install uv
+          uv sync --no-group api --group training
+      - name: Configure docker and kubectl
+        run: |
+          docker login -u="${{vars.QUAY_ROBOT_USERNAME}}" -p="${{secrets.QUAY_ROBOT_TOKEN}}" quay.io
+          kubectl config set-cluster openshift-cluster --server=${{vars.OPENSHIFT_SERVER}}
+          kubectl config set-credentials openshift-credentials --token=${{secrets.OPENSHIFT_TOKEN}}
+          kubectl config set-context openshift-context --cluster=openshift-cluster --user=openshift-credentials --namespace=${{vars.OPENSHIFT_USERNAME}}-dev
+          kubectl config use openshift-context
+      - name: Wake up dailyclean and kto-mlflow
+        run: |
+          kubectl scale --replicas=1 deployment/dailyclean-api
+          sleep 30
+          curl -X POST ${{vars.DAILYCLEAN_ROUTE}}/pods/start
+      - name: Build training image
+        run: |
+          docker build -f k8s/experiment/Dockerfile -t quay.io/gthomas59800/summittest:latest --build-arg MLFLOW_S3_ENDPOINT_URL=${{vars.MLFLOW_S3_ENDPOINT_URL}} --build-arg AWS_ACCESS_KEY_ID=${{vars.AWS_ACCESS_KEY_ID}} --build-arg AWS_SECRET_ACCESS_KEY=${{secrets.AWS_SECRET_ACCESS_KEY}} .
+      - name: Launch mlflow training in Openshift
+        run: |
+          export KUBE_MLFLOW_TRACKING_URI="${{vars.MLFLOW_TRACKING_URI}}"
+          export MLFLOW_TRACKING_URI="${{vars.MLFLOW_TRACKING_URI}}"
+          export MLFLOW_S3_ENDPOINT_URL="${{vars.MLFLOW_S3_ENDPOINT_URL}}"
+          export AWS_ACCESS_KEY_ID="${{vars.AWS_ACCESS_KEY_ID}}" 
+          export AWS_SECRET_ACCESS_KEY="${{secrets.AWS_SECRET_ACCESS_KEY}}"
+
+          uv run mlflow run ./src/summit/training -P path=data.csv --experiment-name summittest --backend kubernetes --backend-config ./k8s/experiment/kubernetes_config.json

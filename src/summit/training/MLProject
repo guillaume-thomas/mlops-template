@@ -1,0 +1,11 @@
+name: summittest-experiment
+
+docker_env:
+  image: quay.io/gthomas59800/summittest
+
+entry_points:
+
+    main:
+        parameters:
+            path: str
+        command: "uv -n run -m summit.training.main --input_data_path {path}"

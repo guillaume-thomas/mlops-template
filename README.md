@@ -45,3 +45,6 @@ or
 
 mlflow run ./src/mlops_ses/training -P path=./data/output.csv --env-manager=local 
 
+
+
+
