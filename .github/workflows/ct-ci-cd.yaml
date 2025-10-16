@@ -43,5 +43,37 @@ jobs:
           export MLFLOW_S3_ENDPOINT_URL="${{vars.MLFLOW_S3_ENDPOINT_URL}}"
           export AWS_ACCESS_KEY_ID="${{vars.AWS_ACCESS_KEY_ID}}" 
           export AWS_SECRET_ACCESS_KEY="${{secrets.AWS_SECRET_ACCESS_KEY}}"
-
-          uv run mlflow run ./src/summit/training -P path=data.csv --experiment-name summittest --backend kubernetes --backend-config ./k8s/experiment/kubernetes_config.json
+          export EXPERIMENT_NAME="summittest"
+          
+          uv run mlflow run ./src/summit/training -P path=data.csv --experiment-name $EXPERIMENT_NAME --backend kubernetes --backend-config ./k8s/experiment/kubernetes_config.json
+          
+          echo "EXPERIMENT_NAME=$EXPERIMENT_NAME" >> "$GITHUB_ENV"
+      - name: Download model artifact
+        run: |
+          export MLFLOW_TRACKING_URI="${{vars.MLFLOW_TRACKING_URI}}"
+          export MLFLOW_S3_ENDPOINT_URL="${{vars.MLFLOW_S3_ENDPOINT_URL}}"
+          export AWS_ACCESS_KEY_ID="${{vars.AWS_ACCESS_KEY_ID}}" 
+          export AWS_SECRET_ACCESS_KEY="${{secrets.AWS_SECRET_ACCESS_KEY}}"
+          export ARTIFACT_URI=$(uv run -m summit.ci.search_mlflow --experiment-name $EXPERIMENT_NAME)
+          
+          echo "ARTIFACT_URI=$ARTIFACT_URI"
+          uv run mlflow artifacts download --artifact-uri $ARTIFACT_URI -d ./src/summit/api/resources/
+          
+          # could be : uv run mlflow artifacts download -r $MLFLOW_RUN_ID -a model.pkl -d ./src/summit/api/resources/
+      - name: Build and push api image
+        run: |
+          docker build -f k8s/api/Dockerfile -t quay.io/gthomas59800/summit/api:latest .
+          docker push quay.io/gthomas59800/summit/api:latest
+      - name: Deploy api to Openshift
+        run: |
+          kubectl apply -f k8s/api/api.yaml
+      - name: Test api
+        run: |
+          sleep 30
+          curl -X POST ${{vars.API_ROUTE}}/infer -H "Content-Type: application/json" -d '{"A": 0.5, "B": 1.5, "C": 2.5}'
+      - name: Asleep kto-mlflow with dailyclean
+        run: |
+          curl -X POST ${{vars.DAILYCLEAN_ROUTE}}/pods/stop
+      - name: Scale down dailyclean
+        run: |
+          kubectl scale --replicas=0 deployment/dailyclean-api

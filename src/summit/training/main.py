@@ -9,7 +9,7 @@ from summit.training.steps.split_train_test import split_train_test
 from summit.training.steps.train import train
 
 
-def workflow(input_data_path: str):
+def workflow(input_data_path: str) -> None:
     logging.warning(f"workflow input path : {input_data_path}")
     with mlflow.start_run() :
         data_path = load_data(input_data_path)

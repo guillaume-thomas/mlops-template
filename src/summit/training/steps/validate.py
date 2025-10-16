@@ -9,14 +9,13 @@ from mlflow.models import infer_signature
 
 client = mlflow.MlflowClient()
 
-def validate(model_path, x_test_path, y_test_path):
+def validate(model_path: str, x_test_path: str, y_test_path: str) -> None:
     logging.warning(f"validate {model_path}")
     model = joblib.load(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=model_path))
 
     x_test = pd.read_csv(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=x_test_path), index_col=False)
     y_test = pd.read_csv(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=y_test_path), index_col=False)
 
-    # S'assurer que y_test est un vecteur
     if y_test.shape[1] == 1:
         y_test = y_test.iloc[:, 0]
 
@@ -27,10 +26,10 @@ def validate(model_path, x_test_path, y_test_path):
     r2 = r2_score(y_test, y_pred)
     medae = median_absolute_error(y_test, y_pred)
 
-    # Importance des features
+    # feature importance
     feature_names = x_test.columns.tolist()
     coefs = model.coef_
-    # Si multi-output, coefs peut être 2D
+
     if hasattr(coefs, 'shape') and len(coefs.shape) > 1:
         coefs = coefs[0]
     feature_importance = {name: float(coef) for name, coef in zip(feature_names, coefs)}
@@ -41,17 +40,14 @@ def validate(model_path, x_test_path, y_test_path):
     mlflow.log_metric("medae", medae)
     mlflow.log_dict(feature_importance, "feature_importance.json")
 
-    """
-    mlflow.sklearn.log_model(model,
-                             name="model_final",
-                             input_example=x_test.head(10),
-                             registered_model_name="model_registered",
-                             signature=infer_signature(x_test, y_pred))
-                             """
-
     model_info = mlflow.sklearn.log_model(model,
-                             name="model_final",
-                             signature=infer_signature(x_test, y_pred))
+                                          name="model_final",
+                                          signature=infer_signature(x_test, y_pred),
+                                          input_example=x_test.head(10))
+    logging.warning(f"artifact path {model_info.artifact_path}")
+    logging.warning(f"model uri {model_info.model_uri}")
+    logging.warning(f"model uuid {model_info.model_uuid}")
+    logging.warning(f"model metadata {model_info.metadata}")
 
     try:
         mlflow.register_model(model_info.model_uri, "model_registered")

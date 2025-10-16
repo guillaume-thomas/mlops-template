@@ -11,7 +11,7 @@ client = mlflow.MlflowClient()
 
 ARTIFACT_PATH = "model_trained"
 
-def train(x_train_path, y_train_path) -> str:
+def train(x_train_path: str, y_train_path: str) -> str:
     logging.warning(f"train {x_train_path} {y_train_path}")
     x_train = pandas.read_csv(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=x_train_path), index_col=False)
     y_train = pandas.read_csv(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=y_train_path), index_col=False)

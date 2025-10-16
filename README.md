@@ -4,7 +4,7 @@
 
 pip install uv
 
-uv sync
+uv sync (--all-groups)
 
 uv run hello
 

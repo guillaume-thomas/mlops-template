@@ -27,7 +27,7 @@ def split_train_test(data_path: str) -> Tuple[str, str, str, str]:
 
     artifact_paths = []
     for data, artifact_path, filename in datasets:
-        data.to_csv(filename)
+        data.to_csv(filename, index=False)
         mlflow.log_artifact(filename, artifact_path)
         os.remove(filename)
         artifact_paths.append(f"{artifact_path}/{filename}")
