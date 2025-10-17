@@ -70,7 +70,7 @@ jobs:
       - name: Test api
         run: |
           sleep 30
-          curl -X POST ${{vars.API_ROUTE}}/infer -H "Content-Type: application/json" -d '{"A": 0.5, "B": 1.5, "C": 2.5}'
+          curl -X POST ${{vars.API_ROUTE}}/infer -H "Content-Type: application/json" -d '{"A": 1, "B": 2, "C": 3}'
       - name: Asleep kto-mlflow with dailyclean
         run: |
           curl -X POST ${{vars.DAILYCLEAN_ROUTE}}/pods/stop
