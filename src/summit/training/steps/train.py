@@ -5,18 +5,20 @@ import fire
 import joblib
 import mlflow.sklearn
 import pandas
-from sklearn import linear_model
+from sklearn.ensemble import RandomForestClassifier
 
 client = mlflow.MlflowClient()
 
 ARTIFACT_PATH = "model_trained"
 
-def train(x_train_path: str, y_train_path: str) -> str:
+def train(x_train_path: str, y_train_path: str, n_estimators: int, max_depth: int, random_state: int) -> str:
     logging.warning(f"train {x_train_path} {y_train_path}")
     x_train = pandas.read_csv(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=x_train_path), index_col=False)
     y_train = pandas.read_csv(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=y_train_path), index_col=False)
 
-    model = linear_model.LinearRegression()
+    x_train = pandas.get_dummies(x_train)
+
+    model = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=random_state)
     model.fit(x_train, y_train)
 
     model_filename = "model.joblib"

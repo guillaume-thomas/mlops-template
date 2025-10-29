@@ -16,6 +16,8 @@ def validate(model_path: str, x_test_path: str, y_test_path: str) -> None:
     x_test = pd.read_csv(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=x_test_path), index_col=False)
     y_test = pd.read_csv(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=y_test_path), index_col=False)
 
+    x_test = pd.get_dummies(x_test)
+
     if y_test.shape[1] == 1:
         y_test = y_test.iloc[:, 0]
 
@@ -26,13 +28,19 @@ def validate(model_path: str, x_test_path: str, y_test_path: str) -> None:
     r2 = r2_score(y_test, y_pred)
     medae = median_absolute_error(y_test, y_pred)
 
-    # feature importance
     feature_names = x_test.columns.tolist()
-    coefs = model.coef_
 
-    if hasattr(coefs, 'shape') and len(coefs.shape) > 1:
-        coefs = coefs[0]
-    feature_importance = {name: float(coef) for name, coef in zip(feature_names, coefs)}
+    if hasattr(model, 'feature_importances_'):
+        importances = model.feature_importances_
+        feature_importance = {name: float(importance) for name, importance in zip(feature_names, importances)}
+    elif hasattr(model, 'coef_'):
+        coefs = model.coef_
+        if hasattr(coefs, 'shape') and len(coefs.shape) > 1:
+            coefs = coefs[0]
+        feature_importance = {name: float(coef) for name, coef in zip(feature_names, coefs)}
+    else:
+        feature_importance = {name: 0.0 for name in feature_names}
+        logging.warning("Model does not have feature importance attributes")
 
     mlflow.log_metric("mse", mse)
     mlflow.log_metric("mae", mae)

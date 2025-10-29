@@ -1,12 +1,16 @@
 import logging
 import os
 from pathlib import Path
+import tempfile
 
 import boto3
 import fire
 import mlflow
+import pandas as pd
+from ydata_profiling import ProfileReport
 
 ARTIFACT_PATH = "path_output"
+PROFILING_PATH = "profiling_reports"
 LOCAL_PATH = "./data.csv"
 
 def load_data(path: str) -> str:
@@ -21,6 +25,16 @@ def load_data(path: str) -> str:
 
     s3_client.download_file("summit", path, LOCAL_PATH)
     p = Path(LOCAL_PATH)
+
+    df = pd.read_csv(LOCAL_PATH)
+
+    profile = ProfileReport(df, title=f"Profiling Report - {p.stem}")
+
+    with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as tmp_file:
+        profile.to_file(tmp_file.name)
+        mlflow.log_artifact(tmp_file.name, PROFILING_PATH)
+        os.unlink(tmp_file.name)
+
     mlflow.log_artifact(p.name, ARTIFACT_PATH)
 
     os.remove(LOCAL_PATH)

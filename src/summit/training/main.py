@@ -9,12 +9,12 @@ from summit.training.steps.split_train_test import split_train_test
 from summit.training.steps.train import train
 
 
-def workflow(input_data_path: str) -> None:
+def workflow(input_data_path: str, n_estimators: int, max_depth: int, random_state: int) -> None:
     logging.warning(f"workflow input path : {input_data_path}")
     with mlflow.start_run() :
         data_path = load_data(input_data_path)
         xtrain_path, xtest_path, ytrain_path, ytest_path = split_train_test(data_path)
-        model_path = train(xtrain_path, ytrain_path)
+        model_path = train(xtrain_path, ytrain_path, n_estimators, max_depth, random_state)
         validate(model_path, xtest_path, ytest_path)
 
 if __name__ == "__main__":

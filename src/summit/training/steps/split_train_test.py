@@ -9,13 +9,22 @@ import sklearn.model_selection
 
 client = mlflow.MlflowClient()
 
+FEATURES = [
+    "Pclass",
+    "Sex",
+    "SibSp",
+    "Parch"
+]
+
+TARGET = "Survived"
+
 def split_train_test(data_path: str) -> Tuple[str, str, str, str]:
     logging.warning(f"split on {data_path}")
 
     df = pd.read_csv(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=data_path), index_col=False)
 
-    y = df["target"]
-    x = df.drop(columns="target")
+    y = df[TARGET]
+    x = df[FEATURES]
     x_train, x_test, y_train, y_test = sklearn.model_selection.train_test_split(x, y, test_size=0.3, random_state=42)
 
     datasets = [

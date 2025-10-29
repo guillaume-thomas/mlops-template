@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "fire>=0.7.1",
+    "pandas>=2.3.3",
     "scikit-learn>=1.7.2",
 ]
 
@@ -24,4 +25,6 @@ api = [
 ]
 training = [
     "mlflow[extras]>=3.4.0",
+    "setuptools>=80.9.0", # for ydata-profiling dependency, bug with python 3.13
+    "ydata-profiling>=4.17.0",
 ]
