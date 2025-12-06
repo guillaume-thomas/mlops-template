@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - feature/titanic
+      - feature/monitoring
   pull_request:
     branches:
       - main

@@ -11,7 +11,7 @@ RUN apt-get update -y && apt-get install -y \
     gcc \
     && apt-get clean
 
-RUN pip install mlflow[extras]==3.4.0
+RUN pip install mlflow[extras]==3.7.0
 RUN pip install mysqlclient
 RUN pip install boto3
 

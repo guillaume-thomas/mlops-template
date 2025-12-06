@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jaeger-badger-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+    spec:
+      containers:
+      - name: jaeger
+        image: jaegertracing/all-in-one:latest
+        env:
+        - name: COLLECTOR_OTLP_ENABLED
+          value: "true"
+        - name: SPAN_STORAGE_TYPE
+          value: "badger"
+        - name: BADGER_EPHEMERAL
+          value: "false"
+        - name: BADGER_DIRECTORY_VALUE
+          value: "/badger/data"
+        - name: BADGER_DIRECTORY_KEY
+          value: "/badger/key"
+        - name: QUERY_BASE_PATH
+          value: "/"
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 200m
+            memory: 256Mi
+        ports:
+        - containerPort: 4318
+          name: otlp-http
+        - containerPort: 16686
+          name: ui
+        - containerPort: 14268
+          name: jaeger-http
+        volumeMounts:
+        - name: badger-data
+          mountPath: /badger
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 16686
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 16686
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: badger-data
+        persistentVolumeClaim:
+          claimName: jaeger-badger-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+spec:
+  selector:
+    app: jaeger
+  ports:
+  - name: otlp-http
+    port: 4318
+    targetPort: 4318
+  - name: ui
+    port: 16686
+    targetPort: 16686
+  - name: jaeger-http
+    port: 14268
+    targetPort: 14268
+  type: ClusterIP
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: jaeger-ui
+spec:
+  to:
+    kind: Service
+    name: jaeger
+  port:
+    targetPort: ui
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+
