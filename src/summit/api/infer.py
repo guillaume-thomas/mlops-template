@@ -9,8 +9,9 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 
 # Set the endpoint and header
-MLFLOW_TRACKING_URI = "mlflow.gthomas59800-dev.svc.cluster.local"
-MLFLOW_EXPERIMENT_ID = "123"
+#MLFLOW_TRACKING_URI = "mlflow.gthomas59800-dev.svc.cluster.local"
+MLFLOW_TRACKING_URI = "http://mlflow-gthomas59800-dev.apps.rm3.7wse.p1.openshiftapps.com"
+MLFLOW_EXPERIMENT_ID = "1" # Trouver un moyen de le passer dynamiquement
 
 os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = f"{MLFLOW_TRACKING_URI}/v1/traces"
 os.environ[
