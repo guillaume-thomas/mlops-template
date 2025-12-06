@@ -1,11 +1,26 @@
+import os
 import pickle
 from dataclasses import dataclass
 from enum import Enum
 import pandas as pd
 
 from fastapi import FastAPI
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+
+# Set the endpoint and header
+MLFLOW_TRACKING_URI = "mlflow.gthomas59800-dev.svc.cluster.local"
+MLFLOW_EXPERIMENT_ID = "123"
+
+os.environ["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"] = f"{MLFLOW_TRACKING_URI}/v1/traces"
+os.environ[
+    "OTEL_EXPORTER_OTLP_TRACES_HEADERS"
+] = f"x-mlflow-experiment-id={MLFLOW_EXPERIMENT_ID}"
+
 
 app = FastAPI()
+FastAPIInstrumentor.instrument_app(app)
+
 model = pickle.load(open("./src/summit/api/resources/model.pkl", "rb"))
 
 

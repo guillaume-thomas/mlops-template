@@ -21,6 +21,9 @@ build-backend = "setuptools.build_meta"
 [dependency-groups]
 api = [
     "fastapi>=0.119.0",
+    #"opentelemetry-exporter-otlp>=1.39.0",
+    "mlflow-tracing>=3.4.0",
+    "opentelemetry-instrumentation-fastapi>=0.60b0",
     "uvicorn>=0.37.0",
 ]
 training = [
