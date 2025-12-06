@@ -14,11 +14,12 @@ spec:
     spec:
       containers:
         - name: mlflow
-          image: quay.io/gthomas59800/summit2025/mlflow34py313:latest
+          image: quay.io/gthomas59800/summit2025/mlflow37py313:latest
           imagePullPolicy: Always
           args:
             - --host=0.0.0.0
             - --port=8080
+            - --disable-security-middleware
             - --backend-store-uri=mysql+mysqldb://summitmlflow:summitmlops@mysql:3306/mlflow
             - --default-artifact-root=s3://mlflow/
             - --workers=2
