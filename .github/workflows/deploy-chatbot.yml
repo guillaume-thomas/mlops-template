@@ -1,0 +1,66 @@
+name: Deploy Titanic Chatbot
+
+on:
+  push:
+    branches:
+      - feature/mcp
+    paths:
+      - 'src/summit/chatbot/**'
+      - 'k8s/chatbot/**'
+      - '.github/workflows/deploy-chatbot.yml'
+  workflow_dispatch:
+
+env:
+  CHATBOT_IMAGE_NAME: quay.io/gthomas59800/summit/chatbot
+  CHATBOT_DEPLOYMENT_NAME: titanic-chatbot
+  CHATBOT_SECRET_NAME: chatbot-secrets
+  CHATBOT_ROUTE_NAME: titanic-chatbot
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure docker and kubectl
+        run: |
+          docker login -u="${{vars.QUAY_ROBOT_USERNAME}}" -p="${{secrets.QUAY_ROBOT_TOKEN}}" quay.io
+          kubectl config set-cluster openshift-cluster --server=${{vars.OPENSHIFT_SERVER}}
+          kubectl config set-credentials openshift-credentials --token=${{secrets.OPENSHIFT_TOKEN}}
+          kubectl config set-context openshift-context --cluster=openshift-cluster --user=openshift-credentials --namespace=${{vars.OPENSHIFT_USERNAME}}-dev
+          kubectl config use openshift-context
+
+      - name: Build and push Docker image
+        run: |
+          docker build -f k8s/chatbot/Dockerfile -t ${{ env.CHATBOT_IMAGE_NAME }}:latest .
+          docker push ${{ env.CHATBOT_IMAGE_NAME }}:latest
+
+      - name: Create or update Secret
+        run: |
+          if kubectl get secret ${{ env.CHATBOT_SECRET_NAME }} 2>/dev/null; then
+            echo "Secret exists, updating..."
+            kubectl delete secret ${{ env.CHATBOT_SECRET_NAME }}
+          fi
+          kubectl create secret generic ${{ env.CHATBOT_SECRET_NAME }} \
+            --from-literal=github-models-token="${{ secrets.GH_MODELS_TOKEN }}"
+          echo "✅ Secret created/updated"
+
+      - name: Deploy to OpenShift
+        run: |
+          kubectl apply -f k8s/chatbot/chatbot.yaml
+          kubectl rollout restart deployment/${{ env.CHATBOT_DEPLOYMENT_NAME }}
+          echo "✅ Deployment updated"
+
+      - name: Get route URL
+        run: |
+          ROUTE_URL=$(kubectl get route ${{ env.CHATBOT_ROUTE_NAME }} -o jsonpath='{.spec.host}')
+          echo "🚀 Chatbot deployed at: https://${ROUTE_URL}"
+          echo "## 🚢 Titanic Chatbot Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Status**: Deployed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 **URL**: https://${ROUTE_URL}" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Image**: ${{ env.CHATBOT_IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "🔐 **Secret**: ${{ env.CHATBOT_SECRET_NAME }} updated" >> $GITHUB_STEP_SUMMARY
+

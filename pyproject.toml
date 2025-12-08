@@ -13,6 +13,7 @@ dependencies = [
 [project.scripts]
 hello = "summit.main:main"
 api = "summit.api.main:main"
+chatbot = "summit.chatbot.app:main"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
@@ -31,4 +32,12 @@ training = [
     "mlflow[extras]>=3.4.0",
     "setuptools>=80.9.0", # for ydata-profiling dependency, bug with python 3.13
     "ydata-profiling>=4.17.0",
+]
+chatbot = [
+    "streamlit>=1.40.0",
+    "langchain>=0.3.0",
+    "langchain-community>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "mcp>=1.0.0",
+    "httpx>=0.28.0",
 ]
