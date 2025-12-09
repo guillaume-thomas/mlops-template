@@ -2,6 +2,22 @@
 
 Chatbot Streamlit avec LLM (GitHub Models - gpt-4o-mini) qui utilise MCP pour appeler l'API d'inférence Titanic.
 
+### ℹ️ Architecture MCP - Microservices séparés
+
+Le serveur MCP est déployé comme un **service Kubernetes indépendant** qui communique avec le chatbot via **SSE (Server-Sent Events)** sur HTTP.
+
+**Architecture microservices** :
+- 🔧 **Serveur MCP** : Service séparé exposant les tools via SSE (port 8000)
+- 💬 **Chatbot** : Client MCP qui se connecte au serveur via HTTP/SSE
+- 🌐 **Communication** : JSON-RPC sur SSE (au lieu de stdio)
+- 📦 **Déploiements** : Deux images Docker distinctes, deux workflows CI/CD
+
+**Avantages** :
+- ✅ Scalabilité : Le serveur MCP peut être scalé indépendamment
+- ✅ Résilience : Restart du chatbot sans affecter le serveur MCP
+- ✅ Production-ready : Architecture microservices standard
+- ✅ Observabilité : Logs et métriques séparés
+
 ---
 
 ## 🚀 Quick Start
@@ -47,15 +63,24 @@ Voir : **Actions → Deploy Titanic Chatbot**
 ```
 src/summit/chatbot/
 ├── app.py          # Application Streamlit
-├── agent.py        # Agent LangChain avec tools
-└── mcp_tools.py    # Outils MCP pour appeler l'API Titanic
+└── agent.py        # Agent LangChain avec MCP client SSE
+
+src/summit/mcp_server/
+├── server.py       # Serveur MCP FastAPI avec SSE
+├── titanic_tool.py # Tool MCP pour prédictions Titanic
+└── __main__.py     # Point d'entrée du serveur
 
 k8s/chatbot/
-├── Dockerfile      # Image Docker
-└── chatbot.yaml    # Manifests Kubernetes (Deployment, Service, Route, Secret)
+├── Dockerfile      # Image Docker chatbot
+└── chatbot.yaml    # Manifests Kubernetes chatbot
+
+k8s/mcp_server/
+├── Dockerfile      # Image Docker serveur MCP
+└── mcp-server.yaml # Manifests Kubernetes serveur MCP
 
 .github/workflows/
-└── deploy-chatbot.yml  # GitHub Action pour déploiement automatique
+├── deploy-chatbot.yml     # CI/CD chatbot
+└── deploy-mcp-server.yml  # CI/CD serveur MCP
 ```
 
 ---
@@ -183,6 +208,21 @@ oc get route titanic-chatbot
 
 ## 🧪 Test local
 
+### Test du serveur MCP seul
+
+```bash
+# Tester le serveur MCP directement (sans LLM)
+export TITANIC_API_URL="http://localhost:8080"
+uv run --group chatbot python tests/mcp_server/test_server.py
+```
+
+Vous verrez :
+- ✅ Connexion au serveur MCP
+- 📋 Liste des tools disponibles
+- 🧪 Tests d'appels au tool `predict_survival`
+
+### Test du chatbot complet (avec MCP + LLM)
+
 ```bash
 # Variables d'environnement
 export OPENAI_API_KEY="ghp_YOUR_GITHUB_TOKEN"
@@ -195,6 +235,11 @@ uv run --group chatbot chatbot
 ```
 
 Ouvrir http://localhost:8501
+
+Le chatbot utilise maintenant :
+1. Le LLM (GitHub Models) pour comprendre la question
+2. Le client MCP pour appeler le serveur
+3. Le serveur MCP pour faire la prédiction via l'API Titanic
 
 ---
 
@@ -209,31 +254,50 @@ Une fois déployé, posez des questions comme :
 
 ---
 
-## 🔧 Architecture technique
+## 🔧 Architecture technique avec MCP
 
 ```
-┌─────────────┐         ┌──────────────┐         ┌─────────────────┐
-│  Streamlit  │ ─────▶  │   LangChain  │ ─────▶  │ GitHub Models   │
-│     UI      │         │    Agent     │         │ (gpt-4o-mini)   │
-└─────────────┘         └──────────────┘         └─────────────────┘
-                               │
-                               ▼
-                        ┌──────────────┐
-                        │  MCP Tools   │
-                        └──────────────┘
-                               │
-                               ▼
-                        ┌──────────────┐
-                        │ Titanic API  │
-                        │  (FastAPI)   │
-                        └──────────────┘
-                               │
-                               ▼
-                        ┌──────────────┐
-                        │Random Forest │
-                        │    Model     │
-                        └──────────────┘
+┌─────────────────┐         ┌──────────────────┐         ┌─────────────────┐
+│  Streamlit UI   │ ──────> │  LangChain Agent │ ──────> │ GitHub Models   │
+│  (app.py)       │         │  (agent.py)      │         │ (gpt-4o-mini)   │
+└─────────────────┘         └────────┬─────────┘         └─────────────────┘
+                                     │
+                                     │ invoke tools
+                                     ▼
+                            ┌─────────────────┐
+                            │   MCP Client    │
+                            │   (SSE/HTTP)    │
+                            └────────┬────────┘
+                                     │
+                              SSE (JSON-RPC)
+                                     │
+                            ┌────────▼────────┐
+                            │   MCP Server    │  ← Service Kubernetes séparé
+                            │  (FastAPI/SSE)  │
+                            └────────┬────────┘
+                                     │
+                                    HTTP
+                                     │
+                            ┌────────▼────────┐
+                            │  Titanic API    │
+                            │  (FastAPI)      │
+                            └────────┬────────┘
+                                     │
+                                     ▼
+                            ┌─────────────────┐
+                            │ Random Forest   │
+                            │     Model       │
+                            └─────────────────┘
 ```
+
+### Composants MCP
+
+- **MCP Server** (`titanic-mcp-server`) : Service Kubernetes exposant les tools via SSE sur port 8000
+- **MCP Client** (intégré dans `agent.py`) : Se connecte au serveur via HTTP/SSE
+- **Protocol** : JSON-RPC sur SSE (Server-Sent Events) pour communication asynchrone
+- **Kubernetes** : Deux déploiements indépendants avec leurs propres images Docker
+
+**Avantage pédagogique** : Architecture microservices avec Model Context Protocol !
 
 ---
 

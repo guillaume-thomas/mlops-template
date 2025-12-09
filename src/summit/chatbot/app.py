@@ -46,9 +46,9 @@ def main():
         - **MCP Tools** to call Titanic inference API
         
         **Example questions:**
-        - "Would a first-class female passenger with 1 sibling survive?"
+        - "Would a first-class female passenger with 1 sibling, no parent, no child, survive?"
         - "Predict survival for a third-class male with no family"
-        - "What are the survival chances for a middle-class woman?"
+        - "What are the survival chances for a middle-class, single with no sibling woman?"
         """)
 
         st.markdown("---")

@@ -3,7 +3,7 @@ name: Deploy Titanic Chatbot
 on:
   push:
     branches:
-      - feature/mcp
+      - feature/mcp_real
     paths:
       - 'src/summit/chatbot/**'
       - 'k8s/chatbot/**'

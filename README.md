@@ -1,5 +1,8 @@
 # mlops-template
 
+> 📚 **Documentation Complète** : Voir [GUIDE_COMPLET.md](GUIDE_COMPLET.md) pour tout le guide d'utilisation  
+> 🏗️ **Architecture MCP** : Voir [ARCHITECTURE_MCP.md](ARCHITECTURE_MCP.md) pour les détails techniques
+
 ## How to install and run your application 
 
 pip install uv

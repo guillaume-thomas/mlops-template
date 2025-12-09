@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: titanic-mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: titanic-mcp-server
+  template:
+    metadata:
+      labels:
+        app: titanic-mcp-server
+    spec:
+      containers:
+        - name: titanic-mcp-server
+          image: quay.io/gthomas59800/summit/mcp-server
+          env:
+            - name: TITANIC_API_URL
+              value: "http://mlops-api-service.gthomas59800-dev.svc.cluster.local:8080"
+            - name: PORT
+              value: "8000"
+          ports:
+            - containerPort: 8000
+              name: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: titanic-mcp-server
+spec:
+  selector:
+    app: titanic-mcp-server
+  ports:
+    - port: 8000
+      name: http
+      targetPort: 8000
+

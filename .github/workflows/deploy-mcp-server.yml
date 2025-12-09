@@ -1,0 +1,53 @@
+name: Deploy MCP Server
+
+on:
+  push:
+    branches:
+      - feature/mcp_real
+    paths:
+      - 'src/summit/mcp_server/**'
+      - 'k8s/mcp_server/**'
+      - '.github/workflows/deploy-mcp-server.yml'
+  workflow_dispatch:
+
+env:
+  MCP_SERVER_IMAGE_NAME: quay.io/gthomas59800/summit/mcp-server
+  MCP_SERVER_DEPLOYMENT_NAME: titanic-mcp-server
+  MCP_SERVER_SERVICE_NAME: titanic-mcp-server
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure docker and kubectl
+        run: |
+          docker login -u="${{vars.QUAY_ROBOT_USERNAME}}" -p="${{secrets.QUAY_ROBOT_TOKEN}}" quay.io
+          kubectl config set-cluster openshift-cluster --server=${{vars.OPENSHIFT_SERVER}}
+          kubectl config set-credentials openshift-credentials --token=${{secrets.OPENSHIFT_TOKEN}}
+          kubectl config set-context openshift-context --cluster=openshift-cluster --user=openshift-credentials --namespace=${{vars.OPENSHIFT_USERNAME}}-dev
+          kubectl config use openshift-context
+
+      - name: Build and push Docker image
+        run: |
+          docker build -f k8s/mcp_server/Dockerfile -t ${{ env.MCP_SERVER_IMAGE_NAME }}:latest .
+          docker push ${{ env.MCP_SERVER_IMAGE_NAME }}:latest
+
+      - name: Deploy to OpenShift
+        run: |
+          kubectl apply -f k8s/mcp_server/mcp-server.yaml
+          kubectl rollout restart deployment/${{ env.MCP_SERVER_DEPLOYMENT_NAME }}
+          echo "✅ MCP Server deployment updated"
+
+      - name: Check deployment status
+        run: |
+          kubectl rollout status deployment/${{ env.MCP_SERVER_DEPLOYMENT_NAME }} --timeout=5m
+          echo "## 🔧 MCP Server Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Status**: Deployed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "📦 **Image**: ${{ env.MCP_SERVER_IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 **Service**: ${{ env.MCP_SERVER_SERVICE_NAME }}.gthomas59800-dev.svc.cluster.local:8000" >> $GITHUB_STEP_SUMMARY
+
