@@ -1,5 +1,4 @@
 import os
-import logging
 from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route, Mount
@@ -10,26 +9,22 @@ import mcp.types as types
 from summit.mcp_server.titanic_tool import TitanicInferenceTool
 import uvicorn
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 API_URL = os.getenv("TITANIC_API_URL", "http://mlops-api-service.gthomas59800-dev.svc.cluster.local:8080")
-titanic_tool = TitanicInferenceTool(API_URL)
 
 mcp = Server("titanic-mcp-server")
 sse = SseServerTransport("/messages")
+titanic_tool = TitanicInferenceTool(API_URL)
 
 @mcp.list_tools()
-async def handle_list_tools() -> list[types.Tool]:
-    logger.info("[MCP] list_tools called")
-    tools = [
+async def list_tools() -> list[types.Tool]:
+    return [
         types.Tool(
             name="predict_survival",
-            description="Predict if a Titanic passenger would survive based on their characteristics",
+            description="Predict if a Titanic passenger would survive",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "pclass": {"type": "integer", "description": "Passenger class (1=Upper, 2=Middle, 3=Low)"},
+                    "pclass": {"type": "integer", "description": "Passenger class (1, 2, or 3)"},
                     "sex": {"type": "string", "description": "Gender (male or female)"},
                     "sibsp": {"type": "integer", "description": "Number of siblings/spouses aboard"},
                     "parch": {"type": "integer", "description": "Number of parents/children aboard"}
@@ -38,65 +33,36 @@ async def handle_list_tools() -> list[types.Tool]:
             }
         )
     ]
-    logger.info(f"[MCP] Returning {len(tools)} tools")
-    return tools
 
 @mcp.call_tool()
-async def handle_call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    logger.info(f"[MCP] call_tool: {name} with args {arguments}")
+async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     if name != "predict_survival":
         raise ValueError(f"Unknown tool: {name}")
 
     result = titanic_tool.predict_survival(**arguments)
-    logger.info(f"[MCP] Tool result: {result}")
 
     if "error" in result:
-        text = f"Error making prediction: {result['error']}"
+        text = f"Error: {result['error']}"
     else:
-        survived_text = "survived" if result["survived"] else "did not survive"
-        text = f"Based on the passenger characteristics, they {survived_text}. (Prediction: {result['prediction']})"
+        status = "survived" if result["survived"] else "did not survive"
+        text = f"Based on the passenger characteristics, they {status}. (Prediction: {result['prediction']})"
 
     return [types.TextContent(type="text", text=text)]
 
-async def handle_sse(request: Request):
-    client_ip = request.client.host if request.client else "unknown"
-    logger.info(f"[SSE] Connection from {client_ip}")
-
-    auth_header = request.headers.get("Authorization")
-    if auth_header:
-        logger.info(f"[SSE] Auth header present for {client_ip}")
-
-    try:
-        async with sse.connect_sse(
-            request.scope, request.receive, request._send
-        ) as streams:
-            logger.info(f"[SSE] SSE connection established for {client_ip}")
-            logger.info(f"[SSE] Starting MCP server for {client_ip}")
-
-            await mcp.run(
-                streams[0], streams[1], mcp.create_initialization_options()
-            )
-
-            logger.info(f"[SSE] MCP server stopped for {client_ip}")
-    except Exception as e:
-        logger.error(f"[SSE] Error for {client_ip}: {e}", exc_info=True)
-        raise
-
+async def sse_handler(request: Request):
+    async with sse.connect_sse(request.scope, request.receive, request._send) as streams:
+        await mcp.run(streams[0], streams[1], mcp.create_initialization_options())
     return Response()
 
-
-
-async def health(request: Request):
+async def health_handler(request: Request):
     return Response(content='{"status":"healthy"}', media_type="application/json")
 
 
-routes = [
-    Route("/sse", endpoint=handle_sse, methods=["GET"]),
+app = Starlette(routes=[
+    Route("/sse", endpoint=sse_handler, methods=["GET"]),
     Mount("/messages", app=sse.handle_post_message),
-    Route("/health", endpoint=health, methods=["GET"]),
-]
-
-app = Starlette(routes=routes)
+    Route("/health", endpoint=health_handler, methods=["GET"]),
+])
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
