@@ -11,4 +11,3 @@ RUN uv sync -n --group mcp-server
 EXPOSE 8000
 
 ENTRYPOINT ["uv", "-n", "run", "--no-sync", "--group", "mcp-server", "python", "-m", "summit.mcp_server.server"]
-

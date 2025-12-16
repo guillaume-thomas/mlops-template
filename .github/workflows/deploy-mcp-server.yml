@@ -50,4 +50,3 @@ jobs:
           echo "✅ **Status**: Deployed successfully" >> $GITHUB_STEP_SUMMARY
           echo "📦 **Image**: ${{ env.MCP_SERVER_IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
           echo "🔗 **Service**: ${{ env.MCP_SERVER_SERVICE_NAME }}.gthomas59800-dev.svc.cluster.local:8000" >> $GITHUB_STEP_SUMMARY
-

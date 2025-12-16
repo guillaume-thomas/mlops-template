@@ -49,4 +49,7 @@ mcp-server = [
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
+    "pre-commit>=3.7.1",
+    "ruff>=0.14.9",
+    "pyright>=1.1.407",
 ]

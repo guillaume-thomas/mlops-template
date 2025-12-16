@@ -43,13 +43,7 @@ async def test_mcp_server_predict_first_class_female(mcp_server_url):
                 await session.initialize()
 
                 result = await session.call_tool(
-                    "predict_survival",
-                    {
-                        "pclass": 1,
-                        "sex": "female",
-                        "sibsp": 1,
-                        "parch": 0
-                    }
+                    "predict_survival", {"pclass": 1, "sex": "female", "sibsp": 1, "parch": 0}
                 )
 
                 assert result.content is not None
@@ -67,13 +61,7 @@ async def test_mcp_server_predict_third_class_male(mcp_server_url):
                 await session.initialize()
 
                 result = await session.call_tool(
-                    "predict_survival",
-                    {
-                        "pclass": 3,
-                        "sex": "male",
-                        "sibsp": 0,
-                        "parch": 0
-                    }
+                    "predict_survival", {"pclass": 3, "sex": "male", "sibsp": 0, "parch": 0}
                 )
 
                 assert result.content is not None
@@ -81,4 +69,3 @@ async def test_mcp_server_predict_third_class_male(mcp_server_url):
                 assert result.content[0].text is not None
     except Exception as e:
         pytest.skip(f"MCP server not available: {e}")
-

@@ -98,7 +98,7 @@ async def handle_sse(request: Request):
     ) as streams:
         await mcp.run(
             streams[0],  # Read stream
-            streams[1],  # Write stream  
+            streams[1],  # Write stream
             mcp.create_initialization_options()
         )
     return Response()  # Important : retourner Response vide
@@ -143,7 +143,7 @@ routes = [
 
 1. **Streamlit** reçoit la question
    - Fichier : `src/summit/chatbot/app.py`
-   
+
 2. **LangChain Agent** analyse la question avec le LLM
    - Fichier : `src/summit/chatbot/agent.py`
    - LLM : GitHub Models (gpt-4o-mini)
@@ -291,4 +291,3 @@ Ce projet est **excellent pour un cours MLOps** car il montre :
 4. Le chatbot le découvre automatiquement !
 
 **Aucune modification du chatbot nécessaire** grâce à MCP ! 🎉
-

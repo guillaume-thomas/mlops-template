@@ -1,9 +1,11 @@
 import os
 import asyncio
+from typing import Any
+
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import StructuredTool
-from mcp import ClientSession
+from mcp import ClientSession, Tool
 from mcp.client.sse import sse_client
 
 
@@ -26,23 +28,23 @@ Be friendly and explain predictions clearly."""
 
 
 class ChatbotAgent:
-    def __init__(self, api_url: str):
-        self.mcp_url = os.getenv("MCP_SERVER_URL", "http://titanic-mcp-server.gthomas59800-dev.svc.cluster.local:8000/sse")
+    def __init__(self) -> None:
+        self.mcp_url = os.getenv(
+            "MCP_SERVER_URL", "http://titanic-mcp-server.gthomas59800-dev.svc.cluster.local:8000/sse"
+        )
         self.llm = ChatOpenAI(
             model=os.getenv("LLM_MODEL", "gpt-4o-mini"),
             api_key=os.getenv("OPENAI_API_KEY", "dummy-key"),
             base_url=os.getenv("OPENAI_BASE_URL", "https://models.inference.ai.azure.com"),
-            temperature=0.7
+            temperature=0.7,
         )
         self.mcp_session = None
         self._sse_context = None
         self._loop = None
 
-    async def _init_mcp(self):
+    async def _init_mcp(self) -> None:
         self._sse_context = sse_client(self.mcp_url)
-        read_stream, write_stream = await asyncio.wait_for(
-            self._sse_context.__aenter__(), timeout=10.0
-        )
+        read_stream, write_stream = await asyncio.wait_for(self._sse_context.__aenter__(), timeout=10.0)
 
         self.mcp_session = ClientSession(read_stream, write_stream)
         await self.mcp_session.__aenter__()
@@ -52,27 +54,20 @@ class ChatbotAgent:
         langchain_tools = [self._create_langchain_tool(t) for t in tools_result.tools]
         self.llm = self.llm.bind_tools(langchain_tools)
 
-
-    def _create_langchain_tool(self, mcp_tool):
-        async def call_mcp(**kwargs) -> str:
+    def _create_langchain_tool(self, mcp_tool: Tool) -> StructuredTool:
+        async def call_mcp(**kwargs: dict[str, Any]) -> str:
             result = await self.mcp_session.call_tool(mcp_tool.name, kwargs)
             return result.content[0].text if result.content else "No result"
 
         return StructuredTool.from_function(
-            func=call_mcp,
-            name=mcp_tool.name,
-            description=mcp_tool.description,
-            coroutine=call_mcp
+            func=call_mcp, name=mcp_tool.name, description=mcp_tool.description, coroutine=call_mcp
         )
 
     async def _chat_async(self, message: str) -> str:
         if not self.mcp_session:
             await self._init_mcp()
 
-        messages = [
-            SystemMessage(content=SYSTEM_PROMPT),
-            HumanMessage(content=message)
-        ]
+        messages = [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=message)]
 
         response = self.llm.invoke(messages)
 
@@ -83,7 +78,6 @@ class ChatbotAgent:
 
         return response.content
 
-
     def chat(self, message: str) -> str:
         if not self._loop:
             self._loop = asyncio.new_event_loop()
@@ -91,9 +85,8 @@ class ChatbotAgent:
 
         return self._loop.run_until_complete(self._chat_async(message))
 
-    async def close(self):
+    async def close(self) -> None:
         if self.mcp_session:
             await self.mcp_session.__aexit__(None, None, None)
         if self._sse_context:
             await self._sse_context.__aexit__(None, None, None)
-

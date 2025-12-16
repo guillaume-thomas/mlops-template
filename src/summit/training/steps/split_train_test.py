@@ -1,6 +1,5 @@
 import logging
 import os
-from typing import Tuple
 
 import fire
 import mlflow
@@ -9,16 +8,12 @@ import sklearn.model_selection
 
 client = mlflow.MlflowClient()
 
-FEATURES = [
-    "Pclass",
-    "Sex",
-    "SibSp",
-    "Parch"
-]
+FEATURES = ["Pclass", "Sex", "SibSp", "Parch"]
 
 TARGET = "Survived"
 
-def split_train_test(data_path: str) -> Tuple[str, str, str, str]:
+
+def split_train_test(data_path: str) -> tuple[str, str, str, str]:
     logging.warning(f"split on {data_path}")
 
     df = pd.read_csv(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=data_path), index_col=False)
@@ -31,7 +26,7 @@ def split_train_test(data_path: str) -> Tuple[str, str, str, str]:
         (x_train, "xtrain", "xtrain.csv"),
         (x_test, "xtest", "xtest.csv"),
         (y_train, "ytrain", "ytrain.csv"),
-        (y_test, "ytest", "ytest.csv")
+        (y_test, "ytest", "ytest.csv"),
     ]
 
     artifact_paths = []
@@ -42,6 +37,7 @@ def split_train_test(data_path: str) -> Tuple[str, str, str, str]:
         artifact_paths.append(f"{artifact_path}/{filename}")
 
     return tuple(artifact_paths)
+
 
 if __name__ == "__main__":
     fire.Fire(split_train_test)

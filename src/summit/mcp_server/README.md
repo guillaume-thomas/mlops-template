@@ -199,7 +199,7 @@ result = httpx.post(api_url, json=data)
 result = await mcp_session.call_tool("predict_survival", args)
 ```
 
-**Différence** : 
+**Différence** :
 - Avant : Appel HTTP direct depuis l'agent
 - Maintenant : Appel via protocole MCP standardisé, le serveur MCP fait l'appel HTTP
 
@@ -478,4 +478,3 @@ Pour enrichir le cours, vous pourriez ajouter :
 - **MCP Spec** : https://spec.modelcontextprotocol.io/
 - **MCP SDK Python** : https://github.com/modelcontextprotocol/python-sdk
 - **LangChain MCP** : https://python.langchain.com/docs/integrations/tools/
-

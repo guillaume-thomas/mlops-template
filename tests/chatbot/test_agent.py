@@ -36,5 +36,3 @@ async def test_agent_mcp_initialization(agent):
     finally:
         if agent.mcp_session:
             await agent.close()
-
-

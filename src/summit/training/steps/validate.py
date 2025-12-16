@@ -9,12 +9,17 @@ from mlflow.models import infer_signature
 
 client = mlflow.MlflowClient()
 
+
 def validate(model_path: str, x_test_path: str, y_test_path: str) -> None:
     logging.warning(f"validate {model_path}")
     model = joblib.load(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=model_path))
 
-    x_test = pd.read_csv(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=x_test_path), index_col=False)
-    y_test = pd.read_csv(client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=y_test_path), index_col=False)
+    x_test = pd.read_csv(
+        client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=x_test_path), index_col=False
+    )
+    y_test = pd.read_csv(
+        client.download_artifacts(run_id=mlflow.active_run().info.run_id, path=y_test_path), index_col=False
+    )
 
     x_test = pd.get_dummies(x_test)
 
@@ -30,14 +35,16 @@ def validate(model_path: str, x_test_path: str, y_test_path: str) -> None:
 
     feature_names = x_test.columns.tolist()
 
-    if hasattr(model, 'feature_importances_'):
+    if hasattr(model, "feature_importances_"):
         importances = model.feature_importances_
-        feature_importance = {name: float(importance) for name, importance in zip(feature_names, importances)}
-    elif hasattr(model, 'coef_'):
+        feature_importance = {
+            name: float(importance) for name, importance in zip(feature_names, importances, strict=False)
+        }
+    elif hasattr(model, "coef_"):
         coefs = model.coef_
-        if hasattr(coefs, 'shape') and len(coefs.shape) > 1:
+        if hasattr(coefs, "shape") and len(coefs.shape) > 1:
             coefs = coefs[0]
-        feature_importance = {name: float(coef) for name, coef in zip(feature_names, coefs)}
+        feature_importance = {name: float(coef) for name, coef in zip(feature_names, coefs, strict=False)}
     else:
         feature_importance = {name: 0.0 for name in feature_names}
         logging.warning("Model does not have feature importance attributes")
@@ -48,10 +55,9 @@ def validate(model_path: str, x_test_path: str, y_test_path: str) -> None:
     mlflow.log_metric("medae", medae)
     mlflow.log_dict(feature_importance, "feature_importance.json")
 
-    model_info = mlflow.sklearn.log_model(model,
-                                          name="model_final",
-                                          signature=infer_signature(x_test, y_pred),
-                                          input_example=x_test.head(10))
+    model_info = mlflow.sklearn.log_model(
+        model, name="model_final", signature=infer_signature(x_test, y_pred), input_example=x_test.head(10)
+    )
     logging.warning(f"artifact path {model_info.artifact_path}")
     logging.warning(f"model uri {model_info.model_uri}")
     logging.warning(f"model uuid {model_info.model_uuid}")
@@ -61,7 +67,6 @@ def validate(model_path: str, x_test_path: str, y_test_path: str) -> None:
         mlflow.register_model(model_info.model_uri, "model_registered")
     except Exception as e:
         logging.error(f"Erreur registry: {e}")
-
 
 
 if __name__ == "__main__":

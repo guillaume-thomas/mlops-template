@@ -5,7 +5,7 @@ from starlette.routing import Route, Mount
 from starlette.applications import Starlette
 from mcp.server import Server
 from mcp.server.sse import SseServerTransport
-import mcp.types as types
+from mcp import types
 from summit.mcp_server.titanic_tool import TitanicInferenceTool
 import uvicorn
 
@@ -14,6 +14,7 @@ API_URL = os.getenv("TITANIC_API_URL", "http://mlops-api-service.gthomas59800-de
 mcp = Server("titanic-mcp-server")
 sse = SseServerTransport("/messages")
 titanic_tool = TitanicInferenceTool(API_URL)
+
 
 @mcp.list_tools()
 async def list_tools() -> list[types.Tool]:
@@ -27,12 +28,13 @@ async def list_tools() -> list[types.Tool]:
                     "pclass": {"type": "integer", "description": "Passenger class (1, 2, or 3)"},
                     "sex": {"type": "string", "description": "Gender (male or female)"},
                     "sibsp": {"type": "integer", "description": "Number of siblings/spouses aboard"},
-                    "parch": {"type": "integer", "description": "Number of parents/children aboard"}
+                    "parch": {"type": "integer", "description": "Number of parents/children aboard"},
                 },
-                "required": ["pclass", "sex", "sibsp", "parch"]
-            }
+                "required": ["pclass", "sex", "sibsp", "parch"],
+            },
         )
     ]
+
 
 @mcp.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
@@ -49,20 +51,24 @@ async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
 
     return [types.TextContent(type="text", text=text)]
 
-async def sse_handler(request: Request):
+
+async def sse_handler(request: Request) -> Response:
     async with sse.connect_sse(request.scope, request.receive, request._send) as streams:
         await mcp.run(streams[0], streams[1], mcp.create_initialization_options())
     return Response()
 
-async def health_handler(request: Request):
+
+async def health_handler(request: Request) -> Response:
     return Response(content='{"status":"healthy"}', media_type="application/json")
 
 
-app = Starlette(routes=[
-    Route("/sse", endpoint=sse_handler, methods=["GET"]),
-    Mount("/messages", app=sse.handle_post_message),
-    Route("/health", endpoint=health_handler, methods=["GET"]),
-])
+app = Starlette(
+    routes=[
+        Route("/sse", endpoint=sse_handler, methods=["GET"]),
+        Mount("/messages", app=sse.handle_post_message),
+        Route("/health", endpoint=health_handler, methods=["GET"]),
+    ]
+)
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))

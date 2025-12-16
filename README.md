@@ -1,9 +1,9 @@
 # mlops-template
 
-> 📚 **Documentation Complète** : Voir [GUIDE_COMPLET.md](GUIDE_COMPLET.md) pour tout le guide d'utilisation  
+> 📚 **Documentation Complète** : Voir [GUIDE_COMPLET.md](GUIDE_COMPLET.md) pour tout le guide d'utilisation
 > 🏗️ **Architecture MCP** : Voir [ARCHITECTURE_MCP.md](ARCHITECTURE_MCP.md) pour les détails techniques
 
-## How to install and run your application 
+## How to install and run your application
 
 pip install uv
 
@@ -17,7 +17,7 @@ Install python in uv with
 
 uv python install <your version>
 
-List pythons available with 
+List pythons available with
 
 uv python list
 
@@ -40,14 +40,10 @@ Do not forget to activate your venv !!!
 https://github.com/mlflow/mlflow/blob/master/examples/multistep_workflow/README.rst
 https://mlflow.org/docs/latest/ml/projects/#building-workflows
 
-## How to execute your MLproject in your local uv environment 
+## How to execute your MLproject in your local uv environment
 
 mlflow run . -P path=coucou --env-manager=local
 
 or
 
-mlflow run ./src/mlops_ses/training -P path=./data/output.csv --env-manager=local 
-
-
-
-
+mlflow run ./src/mlops_ses/training -P path=./data/output.csv --env-manager=local

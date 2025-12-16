@@ -1,6 +1,6 @@
 # 📚 Guide Complet - Projet MLOps avec MCP
 
-> **Note** : Ce document est une synthèse de toute la documentation du projet.  
+> **Note** : Ce document est une synthèse de toute la documentation du projet.
 > Pour l'architecture technique détaillée, voir [ARCHITECTURE_MCP.md](ARCHITECTURE_MCP.md)
 
 ## 🎯 Vue d'ensemble
@@ -314,23 +314,23 @@ dev = ["pytest", "pytest-asyncio"]
 Ce projet est excellent pour un **cours MLOps** car il démontre :
 
 ### Concepts Techniques
-✅ Model Context Protocol (MCP)  
-✅ Server-Sent Events (SSE)  
-✅ LangChain + LLM  
-✅ Architecture microservices  
-✅ Kubernetes / OpenShift  
-✅ CI/CD avec GitHub Actions  
-✅ Gestion sécurisée des secrets  
-✅ Logging et observabilité  
+✅ Model Context Protocol (MCP)
+✅ Server-Sent Events (SSE)
+✅ LangChain + LLM
+✅ Architecture microservices
+✅ Kubernetes / OpenShift
+✅ CI/CD avec GitHub Actions
+✅ Gestion sécurisée des secrets
+✅ Logging et observabilité
 
 ### Best Practices
-✅ Séparation des responsabilités  
-✅ Configuration via variables d'environnement  
-✅ Secrets gérés par Kubernetes  
-✅ Timeouts sur opérations async  
-✅ Logging structuré  
-✅ Tests automatisés  
-✅ Documentation complète  
+✅ Séparation des responsabilités
+✅ Configuration via variables d'environnement
+✅ Secrets gérés par Kubernetes
+✅ Timeouts sur opérations async
+✅ Logging structuré
+✅ Tests automatisés
+✅ Documentation complète
 
 ---
 
@@ -388,23 +388,23 @@ curl https://models.inference.ai.azure.com/chat/completions \
 ### Problèmes résolus (16 décembre 2024)
 
 #### 1. Serveur MCP ne fonctionnait pas
-**Avant** : Tentative manuelle de gérer SSE (complexe et cassé)  
-**Après** : Utilisation de `SseServerTransport` du SDK MCP  
+**Avant** : Tentative manuelle de gérer SSE (complexe et cassé)
+**Après** : Utilisation de `SseServerTransport` du SDK MCP
 **Impact** : ✅ MCP fonctionne à 100%
 
 #### 2. Client MCP sans timeouts
-**Avant** : Opérations async sans timeout → CancelledError  
-**Après** : Timeouts de 10s sur toutes les opérations  
+**Avant** : Opérations async sans timeout → CancelledError
+**Après** : Timeouts de 10s sur toutes les opérations
 **Impact** : ✅ Connexion stable
 
 #### 3. LangChain Tool incompatible
-**Avant** : `@tool(name=...)` (API obsolète)  
-**Après** : `StructuredTool.from_function()`  
+**Avant** : `@tool(name=...)` (API obsolète)
+**Après** : `StructuredTool.from_function()`
 **Impact** : ✅ Tools MCP fonctionnels
 
 #### 4. Secret hardcodé
-**Avant** : Token en clair dans `chatbot.yaml`  
-**Après** : Secret géré par CI/CD depuis GitHub Secrets  
+**Avant** : Token en clair dans `chatbot.yaml`
+**Après** : Secret géré par CI/CD depuis GitHub Secrets
 **Impact** : ✅ Sécurité améliorée
 
 ---
@@ -451,11 +451,11 @@ Avant de considérer que tout fonctionne :
 
 Si tu as suivi ce guide et que tous les tests passent, tu as maintenant :
 
-✅ Un chatbot IA conversationnel fonctionnel  
-✅ Une architecture microservices complète  
-✅ Un exemple de Model Context Protocol en production  
-✅ Une stack MLOps moderne et sécurisée  
-✅ Un projet parfait pour un cours MLOps !  
+✅ Un chatbot IA conversationnel fonctionnel
+✅ Une architecture microservices complète
+✅ Un exemple de Model Context Protocol en production
+✅ Une stack MLOps moderne et sécurisée
+✅ Un projet parfait pour un cours MLOps !
 
 **Le système est prêt à être utilisé ! 🚀**
 
@@ -470,4 +470,3 @@ Pour toute question ou problème :
 4. Vérifie que le secret `GH_MODELS_TOKEN` est correctement configuré
 
 **Bon courage avec ton projet MLOps ! 🎓**
-

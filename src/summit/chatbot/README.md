@@ -134,7 +134,7 @@ Le workflow `.github/workflows/deploy-chatbot.yml` se déclenche automatiquement
 #### Étapes du workflow
 
 1. **Checkout code** - Récupère le code source
-2. **Configure docker and kubectl** 
+2. **Configure docker and kubectl**
    - Login Quay.io avec robot account
    - Configure kubectl pour OpenShift
 3. **Build and push Docker image**
@@ -399,4 +399,3 @@ kubectl logs -f deployment/titanic-chatbot
 # Vérifier le secret
 kubectl get secret chatbot-secrets -o yaml
 ```
-

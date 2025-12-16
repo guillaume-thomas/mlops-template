@@ -63,4 +63,3 @@ jobs:
           echo "🔗 **URL**: https://${ROUTE_URL}" >> $GITHUB_STEP_SUMMARY
           echo "📦 **Image**: ${{ env.CHATBOT_IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
           echo "🔐 **Secret**: ${{ env.CHATBOT_SECRET_NAME }} updated" >> $GITHUB_STEP_SUMMARY
-

@@ -5,9 +5,16 @@ Usage:
   Terminal 1: python test_mcp_local.py server
   Terminal 2: python test_mcp_local.py client
 """
+
 import sys
 import asyncio
 import os
+from summit.mcp_server.server import app
+import uvicorn
+from mcp import ClientSession
+from mcp.client.sse import sse_client
+import traceback
+
 
 async def run_server():
     """Lance le serveur MCP en local"""
@@ -15,17 +22,13 @@ async def run_server():
     os.environ["TITANIC_API_URL"] = "http://localhost:8080"
     os.environ["PORT"] = "8000"
 
-    from summit.mcp_server.server import app
-    import uvicorn
-
     config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
     server = uvicorn.Server(config)
     await server.serve()
 
+
 async def run_client():
     """Teste la connexion au serveur MCP"""
-    from mcp import ClientSession
-    from mcp.client.sse import sse_client
 
     url = "http://localhost:8000/sse"
     print(f"[CLIENT] Connecting to {url}")
@@ -49,13 +52,11 @@ async def run_client():
                     tool = result.tools[0]
                     print(f"\n[CLIENT] Calling tool '{tool.name}'...")
                     response = await asyncio.wait_for(
-                        session.call_tool(
-                            tool.name,
-                            {"pclass": 3, "sex": "male", "sibsp": 0, "parch": 0}
-                        ),
-                        timeout=5.0
+                        session.call_tool(tool.name, {"pclass": 3, "sex": "male", "sibsp": 0, "parch": 0}), timeout=5.0
                     )
-                    print(f"[CLIENT] ✅ Tool response: {response.content[0].text if response.content else 'No content'}")
+                    print(
+                        f"[CLIENT] ✅ Tool response: {response.content[0].text if response.content else 'No content'}"
+                    )
 
                 print("\n[CLIENT] ✅ All tests passed!")
 
@@ -66,8 +67,8 @@ async def run_client():
         print("  2. Le serveur répond sur http://localhost:8000/health")
     except Exception as e:
         print(f"[CLIENT] ❌ Error: {e}")
-        import traceback
         traceback.print_exc()
+
 
 def main():
     if len(sys.argv) < 2:
@@ -87,6 +88,6 @@ def main():
         print("Utilisez 'server' ou 'client'")
         sys.exit(1)
 
+
 if __name__ == "__main__":
     main()
-

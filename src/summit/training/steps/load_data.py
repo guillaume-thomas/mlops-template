@@ -13,6 +13,7 @@ ARTIFACT_PATH = "path_output"
 PROFILING_PATH = "profiling_reports"
 LOCAL_PATH = "./data.csv"
 
+
 def load_data(path: str) -> str:
     logging.warning(f"load_data on path : {path}")
 
@@ -20,7 +21,7 @@ def load_data(path: str) -> str:
         "s3",
         endpoint_url=os.environ.get("MLFLOW_S3_ENDPOINT_URL"),
         aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY")
+        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
     )
 
     s3_client.download_file("summit", path, LOCAL_PATH)

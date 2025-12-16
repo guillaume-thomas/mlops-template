@@ -3,20 +3,14 @@ import streamlit as st
 from summit.chatbot.agent import ChatbotAgent
 
 
-def main():
-    st.set_page_config(
-        page_title="Titanic Survival Chatbot",
-        page_icon="🚢",
-        layout="centered"
-    )
+def main() -> None:
+    st.set_page_config(page_title="Titanic Survival Chatbot", page_icon="🚢", layout="centered")
 
     st.title("🚢 Titanic Survival Prediction Chatbot")
     st.markdown("Ask me about Titanic passenger survival predictions!")
 
-    api_url = os.getenv("TITANIC_API_URL", "http://mlops-api-service.gthomas59800-dev.svc.cluster.local:8080")
-
     if "agent" not in st.session_state:
-        st.session_state.agent = ChatbotAgent(api_url)
+        st.session_state.agent = ChatbotAgent()
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -30,10 +24,9 @@ def main():
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                response = st.session_state.agent.chat(prompt)
-                st.markdown(response)
+        with st.chat_message("assistant"), st.spinner("Thinking..."):
+            response = st.session_state.agent.chat(prompt)
+            st.markdown(response)
 
         st.session_state.messages.append({"role": "assistant", "content": response})
 
@@ -44,7 +37,7 @@ def main():
         - **LangChain** for agent orchestration
         - **GitHub Models** (gpt-4o-mini) - FREE with GitHub account
         - **MCP Tools** to call Titanic inference API
-        
+
         **Example questions:**
         - "Would a first-class female passenger with 1 sibling, no parent, no child, survive?"
         - "Predict survival for a third-class male with no family"
@@ -53,7 +46,6 @@ def main():
 
         st.markdown("---")
         st.markdown("**Configuration:**")
-        st.code(f"API: {api_url}", language=None)
         st.code(f"LLM: {os.getenv('LLM_MODEL', 'gpt-4o-mini')}", language=None)
 
         if st.button("Clear Chat History"):
@@ -63,4 +55,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

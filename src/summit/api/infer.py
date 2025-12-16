@@ -15,9 +15,7 @@ from opentelemetry.sdk.resources import Resource
 
 JAEGER_ENDPOINT = os.getenv("JAEGER_ENDPOINT", "http://jaeger.gthomas59800-dev.svc.cluster.local:4318/v1/traces")
 
-resource = Resource(attributes={
-    "service.name": "titanic-inference-api"
-})
+resource = Resource(attributes={"service.name": "titanic-inference-api"})
 
 provider = TracerProvider(resource=resource)
 processor = BatchSpanProcessor(HTTPSpanExporter(endpoint=JAEGER_ENDPOINT))
@@ -29,7 +27,8 @@ tracer = trace.get_tracer(__name__)
 app = FastAPI()
 FastAPIInstrumentor.instrument_app(app)
 
-model = pickle.load(open("./src/summit/api/resources/model.pkl", "rb"))
+with open("./src/summit/api/resources/model.pkl", "rb") as f:
+    model = pickle.load(f)
 
 
 class Pclass(Enum):
@@ -37,9 +36,11 @@ class Pclass(Enum):
     MIDDLE = 2
     LOW = 3
 
+
 class Sex(Enum):
     MALE = "male"
     FEMALE = "female"
+
 
 @dataclass
 class Passenger:
@@ -48,17 +49,14 @@ class Passenger:
     sibSp: int
     parch: int
 
-    def to_dict(self):
-        return {
-            "Pclass": self.pclass.value,
-            "Sex": self.sex.value,
-            "SibSp": self.sibSp,
-            "Parch": self.parch
-        }
+    def to_dict(self) -> dict:
+        return {"Pclass": self.pclass.value, "Sex": self.sex.value, "SibSp": self.sibSp, "Parch": self.parch}
+
 
 @app.get("/health")
-def health():
+def health() -> dict:
     return {"status": "OK"}
+
 
 @app.post("/infer")
 def infer(passenger: Passenger) -> list:
