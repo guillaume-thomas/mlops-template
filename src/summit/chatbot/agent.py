@@ -35,7 +35,7 @@ class ChatbotAgent:
         self.llm = ChatOpenAI(
             model=os.getenv("LLM_MODEL", "gpt-4o-mini"),
             api_key=os.getenv("OPENAI_API_KEY", "dummy-key"),
-            base_url=os.getenv("OPENAI_BASE_URL", "https://models.inference.ai.azure.com"),
+            base_url=os.getenv("OPENAI_BASE_URL", "https://models.github.ai/inference"),
             temperature=0.7,
         )
         self.mcp_session = None

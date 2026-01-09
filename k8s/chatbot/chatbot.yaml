@@ -39,7 +39,7 @@ spec:
                   name: chatbot-secrets
                   key: github-models-token
             - name: OPENAI_BASE_URL
-              value: "https://models.inference.ai.azure.com"
+              value: "https://models.github.ai/inference"
             - name: LLM_MODEL
               value: "gpt-4o-mini"
           ports:
