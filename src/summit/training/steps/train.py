@@ -1,9 +1,10 @@
 import logging
-import os
+from pathlib import Path
+import tempfile
 
 import fire
 import joblib
-import mlflow.sklearn
+import mlflow
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 
@@ -27,12 +28,10 @@ def train(x_train_path: str, y_train_path: str, n_estimators: int, max_depth: in
     model.fit(x_train, y_train)
 
     model_filename = "model.joblib"
-    model_path = "./" + model_filename
-
-    joblib.dump(model, model_path)
-    mlflow.log_artifact(model_path, ARTIFACT_PATH)
-
-    os.remove(model_path)
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        model_path = Path(tmp_dir, model_filename)
+        joblib.dump(model, model_path)
+        mlflow.log_artifact(str(model_path), ARTIFACT_PATH)
 
     return f"{ARTIFACT_PATH}/{model_filename}"
 

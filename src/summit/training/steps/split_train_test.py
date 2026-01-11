@@ -1,5 +1,6 @@
 import logging
-import os
+from pathlib import Path
+import tempfile
 
 import fire
 import mlflow
@@ -30,11 +31,12 @@ def split_train_test(data_path: str) -> tuple[str, str, str, str]:
     ]
 
     artifact_paths = []
-    for data, artifact_path, filename in datasets:
-        data.to_csv(filename, index=False)
-        mlflow.log_artifact(filename, artifact_path)
-        os.remove(filename)
-        artifact_paths.append(f"{artifact_path}/{filename}")
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        for data, artifact_path, filename in datasets:
+            file_path = Path(tmp_dir, filename)
+            data.to_csv(file_path, index=False)
+            mlflow.log_artifact(str(file_path), artifact_path)
+            artifact_paths.append(f"{artifact_path}/{filename}")
 
     return tuple(artifact_paths)
 
