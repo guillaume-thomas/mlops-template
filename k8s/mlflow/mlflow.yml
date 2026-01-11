@@ -61,7 +61,9 @@ spec:
   path: ""
   port:
     targetPort: 8080
-  tls: null
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: None
   to:
     kind: Service
     name: mlflow

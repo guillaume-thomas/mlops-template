@@ -97,7 +97,9 @@ spec:
   path: ""
   port:
     targetPort: 9001
-  tls: null
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: None
   to:
     kind: Service
     name: mlflow-minio-service
@@ -112,7 +114,9 @@ spec:
   path: ""
   port:
     targetPort: 9000
-  tls: null
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: None
   to:
     kind: Service
     name: mlflow-minio-service

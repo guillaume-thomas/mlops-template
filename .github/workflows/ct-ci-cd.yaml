@@ -53,9 +53,9 @@ jobs:
           DAILYCLEAN_ROUTE_URL=$(kubectl get route ${{ env.DAILYCLEAN_ROUTE_NAME }} -o jsonpath='{.spec.host}')
           MINIO_API_ROUTE_URL=$(kubectl get route ${{ env.MINIO_API_ROUTE_NAME }} -o jsonpath='{.spec.host}')
           MLFLOW_TRACKING_ROUTE_URL=$(kubectl get route ${{ env.MLFLOW_TRACKING_ROUTE_NAME }} -o jsonpath='{.spec.host}')
-          echo "DAILYCLEAN_ROUTE_URL=http://$DAILYCLEAN_ROUTE_URL" >> "$GITHUB_ENV"
-          echo "MINIO_API_ROUTE_URL=http://$MINIO_API_ROUTE_URL" >> "$GITHUB_ENV"
-          echo "MLFLOW_TRACKING_ROUTE_URL=http://$MLFLOW_TRACKING_ROUTE_URL" >> "$GITHUB_ENV"
+          echo "DAILYCLEAN_ROUTE_URL=https://$DAILYCLEAN_ROUTE_URL" >> "$GITHUB_ENV"
+          echo "MINIO_API_ROUTE_URL=https://$MINIO_API_ROUTE_URL" >> "$GITHUB_ENV"
+          echo "MLFLOW_TRACKING_ROUTE_URL=https://$MLFLOW_TRACKING_ROUTE_URL" >> "$GITHUB_ENV"
       - name: Wake up dailyclean and kto-mlflow
         run: |
           kubectl scale --replicas=1 deployment/dailyclean-api
