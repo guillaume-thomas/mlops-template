@@ -17,6 +17,16 @@ on:
     branches:
       - main
 
+env:
+  EXPERIMENT_NAME: summittest
+  EXPERIMENT_IMAGE_NAME: quay.io/gthomas59800/summittest
+  API_IMAGE_NAME: quay.io/gthomas59800/summit/api
+  API_DEPLOYMENT_NAME: mlops-api
+  API_ROUTE_NAME: mlops-api
+  DAILYCLEAN_ROUTE_NAME: dailyclean
+  MINIO_API_ROUTE_NAME: minio-api
+  MLFLOW_TRACKING_ROUTE_NAME: mlflow
+
 jobs:
   train:
     runs-on: ubuntu-latest
@@ -38,33 +48,39 @@ jobs:
           kubectl config set-credentials openshift-credentials --token=${{secrets.OPENSHIFT_TOKEN}}
           kubectl config set-context openshift-context --cluster=openshift-cluster --user=openshift-credentials --namespace=${{vars.OPENSHIFT_USERNAME}}-dev
           kubectl config use openshift-context
+      - name: Get Routes from Kubernetes and add them to env
+        run: |
+          DAILYCLEAN_ROUTE_URL=$(kubectl get route ${{ env.DAILYCLEAN_ROUTE_NAME }} -o jsonpath='{.spec.host}')
+          MINIO_API_ROUTE_URL=$(kubectl get route ${{ env.MINIO_API_ROUTE_NAME }} -o jsonpath='{.spec.host}')
+          MLFLOW_TRACKING_ROUTE_URL=$(kubectl get route ${{ env.MLFLOW_TRACKING_ROUTE_NAME }} -o jsonpath='{.spec.host}')
+          echo "DAILYCLEAN_ROUTE_URL=http://$DAILYCLEAN_ROUTE_URL" >> "$GITHUB_ENV"
+          echo "MINIO_API_ROUTE_URL=http://$MINIO_API_ROUTE_URL" >> "$GITHUB_ENV"
+          echo "MLFLOW_TRACKING_ROUTE_URL=http://$MLFLOW_TRACKING_ROUTE_URL" >> "$GITHUB_ENV"
       - name: Wake up dailyclean and kto-mlflow
         run: |
           kubectl scale --replicas=1 deployment/dailyclean-api
           sleep 30
-          curl -X POST ${{vars.DAILYCLEAN_ROUTE}}/pods/start
+          curl -X POST $DAILYCLEAN_ROUTE_URL/pods/start
       - name: Build training image
         run: |
-          docker build -f k8s/experiment/Dockerfile -t quay.io/gthomas59800/summittest:latest --build-arg MLFLOW_S3_ENDPOINT_URL=${{vars.MLFLOW_S3_ENDPOINT_URL}} --build-arg AWS_ACCESS_KEY_ID=${{vars.AWS_ACCESS_KEY_ID}} --build-arg AWS_SECRET_ACCESS_KEY=${{secrets.AWS_SECRET_ACCESS_KEY}} .
+          docker build -f k8s/experiment/Dockerfile -t ${{ env.EXPERIMENT_IMAGE_NAME }}:latest --build-arg MLFLOW_S3_ENDPOINT_URL=$MINIO_API_ROUTE_URL --build-arg AWS_ACCESS_KEY_ID=${{vars.AWS_ACCESS_KEY_ID}} --build-arg AWS_SECRET_ACCESS_KEY=${{secrets.AWS_SECRET_ACCESS_KEY}} .
       - name: Launch mlflow training in Openshift
         run: |
-          export KUBE_MLFLOW_TRACKING_URI="${{vars.MLFLOW_TRACKING_URI}}"
-          export MLFLOW_TRACKING_URI="${{vars.MLFLOW_TRACKING_URI}}"
-          export MLFLOW_S3_ENDPOINT_URL="${{vars.MLFLOW_S3_ENDPOINT_URL}}"
+          export KUBE_MLFLOW_TRACKING_URI=$MLFLOW_TRACKING_ROUTE_URL
+          export MLFLOW_TRACKING_URI=$MLFLOW_TRACKING_ROUTE_URL
+          export MLFLOW_S3_ENDPOINT_URL=$MINIO_API_ROUTE_URL
           export AWS_ACCESS_KEY_ID="${{vars.AWS_ACCESS_KEY_ID}}"
-          export AWS_SECRET_ACCESS_KEY="${{secrets.AWS_SECRET_ACCESS_KEY}}"
-          export EXPERIMENT_NAME="summittest"
+          export AWS_SECRET_ACCESS_KEY="${{secrets.AWS_SECRET_ACCESS_KEY}}" 
 
-          uv run mlflow run ./src/summit/training -P path=all_titanic.csv --experiment-name $EXPERIMENT_NAME --backend kubernetes --backend-config ./k8s/experiment/kubernetes_config.json
+          uv run mlflow run ./src/summit/training -P path=all_titanic.csv --experiment-name ${{ env.EXPERIMENT_NAME }} --backend kubernetes --backend-config ./k8s/experiment/kubernetes_config.json
 
-          echo "EXPERIMENT_NAME=$EXPERIMENT_NAME" >> "$GITHUB_ENV"
       - name: Download model artifact
         run: |
-          export MLFLOW_TRACKING_URI="${{vars.MLFLOW_TRACKING_URI}}"
-          export MLFLOW_S3_ENDPOINT_URL="${{vars.MLFLOW_S3_ENDPOINT_URL}}"
+          export MLFLOW_TRACKING_URI=$MLFLOW_TRACKING_ROUTE_URL
+          export MLFLOW_S3_ENDPOINT_URL=$MINIO_API_ROUTE_URL
           export AWS_ACCESS_KEY_ID="${{vars.AWS_ACCESS_KEY_ID}}"
           export AWS_SECRET_ACCESS_KEY="${{secrets.AWS_SECRET_ACCESS_KEY}}"
-          export ARTIFACT_URI=$(uv run -m summit.ci.search_mlflow --experiment-name $EXPERIMENT_NAME)
+          export ARTIFACT_URI=$(uv run -m summit.ci.search_mlflow --experiment-name ${{ env.EXPERIMENT_NAME }})
 
           echo "ARTIFACT_URI=$ARTIFACT_URI"
           uv run mlflow artifacts download --artifact-uri $ARTIFACT_URI -d ./src/summit/api/resources/
@@ -72,18 +88,23 @@ jobs:
           # could be : uv run mlflow artifacts download -r $MLFLOW_RUN_ID -a model.pkl -d ./src/summit/api/resources/
       - name: Build and push api image
         run: |
-          docker build -f k8s/api/Dockerfile -t quay.io/gthomas59800/summit/api:latest .
-          docker push quay.io/gthomas59800/summit/api:latest
-      - name: Deploy api to Openshift
+          docker build -f k8s/api/Dockerfile -t ${{ env.API_IMAGE_NAME }}:latest .
+          docker push ${{ env.API_IMAGE_NAME }}:latest
+      - name: Deploy api to Openshift and get API Route
         run: |
           kubectl apply -f k8s/api/api.yaml
+          kubectl rollout restart deployment/${{ env.API_DEPLOYMENT_NAME }}
+          echo "✅ Deployment updated"
+          API_ROUTE_URL=$(kubectl get route ${{ env.API_ROUTE_NAME }} -o jsonpath='{.spec.host}')
+          echo "API_ROUTE_URL=https://$API_ROUTE_URL" >> "$GITHUB_ENV"
+          echo "🚀 API deployed at: ${API_ROUTE_URL}"
       - name: Test api
         run: |
           sleep 60
-          curl -X POST ${{vars.API_ROUTE}}/infer -H "Content-Type: application/json" -d '{"pclass": 3, "sex": "male", "sibSp": 0, "parch": 0}'
+          curl -X POST $API_ROUTE_URL/infer -H "Content-Type: application/json" -d '{"pclass": 3, "sex": "male", "sibSp": 0, "parch": 0}'
       - name: Asleep kto-mlflow with dailyclean
         run: |
-          curl -X POST ${{vars.DAILYCLEAN_ROUTE}}/pods/stop
+          curl -X POST $DAILYCLEAN_ROUTE_URL/pods/stop
       - name: Scale down dailyclean
         run: |
           kubectl scale --replicas=0 deployment/dailyclean-api
