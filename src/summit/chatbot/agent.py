@@ -52,9 +52,9 @@ class ChatbotAgent:
             await mcp_client.initialize()
             result = await mcp_client.call_tool(tool_name, arguments=arguments)
 
-            if hasattr(result, 'content') and result.content:
+            if hasattr(result, "content") and result.content:
                 content = result.content[0]
-                if hasattr(content, 'text'):
+                if hasattr(content, "text"):
                     return content.text
                 return str(content)
             return str(result)
@@ -86,6 +86,4 @@ class ChatbotAgent:
             return response.content
 
     def chat(self, message: str) -> str:
-        """Wrapper synchrone pour Streamlit."""
         return asyncio.run(self.chat_async(message))
-

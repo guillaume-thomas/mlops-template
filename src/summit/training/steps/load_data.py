@@ -13,7 +13,6 @@ ARTIFACT_PATH = "path_output"
 PROFILING_PATH = "profiling_reports"
 
 
-
 def load_data(path: str) -> str:
     logging.warning(f"load_data on path : {path}")
 
@@ -39,8 +38,6 @@ def load_data(path: str) -> str:
             os.unlink(tmp_file.name)
 
         mlflow.log_artifact(str(local_path), ARTIFACT_PATH)
-
-
 
     return f"{ARTIFACT_PATH}/{local_path.name}"
 

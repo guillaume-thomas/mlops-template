@@ -31,8 +31,8 @@ spec:
           env:
             - name: TITANIC_API_URL
               value: "http://mlops-api-service.gthomas59800-dev.svc.cluster.local:8080"
-            - name: MCP_SERVER_URL
-              value: "http://titanic-mcp-server.gthomas59800-dev.svc.cluster.local:8000/sse"
+            - name: MCP_SERVER_HOST
+              value: "http://titanic-mcp-server.gthomas59800-dev.svc.cluster.local:8000"
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:

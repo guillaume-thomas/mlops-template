@@ -128,10 +128,10 @@ from mcp import ClientSession
 async with streamablehttp_client("http://mcp-server:8000/mcp") as (read, write, _):
     session = ClientSession(read, write)
     await session.initialize()
-    
+
     # Lister les tools disponibles
     tools = await session.list_tools()
-    
+
     # Appeler un tool
     result = await session.call_tool("predict_survival", {
         "pclass": 3,

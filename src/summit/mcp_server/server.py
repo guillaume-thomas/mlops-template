@@ -34,9 +34,15 @@ def predict_survival(pclass: int, sex: str, sibsp: int, parch: int) -> str:
         survived = bool(prediction)
 
         if survived:
-            return f"Good news! According to the prediction model, this passenger would have SURVIVED the Titanic disaster (prediction: {prediction})."
+            return (
+                f"Good news! According to the prediction model, this passenger would have SURVIVED the Titanic "
+                f"disaster (prediction: {prediction})."
+            )
         else:
-            return f"Unfortunately, according to the prediction model, this passenger would NOT have survived the Titanic disaster (prediction: {prediction})."
+            return (
+                f"Unfortunately, according to the prediction model, this passenger would NOT have survived the "
+                f"Titanic disaster (prediction: {prediction})."
+            )
     except Exception as e:
         return f"Sorry, I encountered an error while trying to predict: {e!s}"
 
@@ -51,4 +57,3 @@ if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "8000"))
     mcp.run(transport="streamable-http", host=host, port=port, path="/mcp")
-

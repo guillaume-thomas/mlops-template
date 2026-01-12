@@ -1,71 +1,63 @@
-import os
+from unittest.mock import patch, Mock
+from summit.mcp_server.server import mcp, predict_survival, health_check
+import requests
 import pytest
-from mcp import ClientSession
-from mcp.client.sse import sse_client
+from starlette.requests import Request
 
 
-@pytest.fixture
-def mcp_server_url():
-    return os.getenv("MCP_SERVER_URL", "http://localhost:8000/sse")
+def test_mcp_server_configuration():
+    """Test que le serveur MCP est correctement configuré."""
+    assert mcp is not None
+    assert hasattr(mcp, "name")
+    assert mcp.name == "titanic-mcp-server"
 
 
-@pytest.mark.asyncio
-async def test_mcp_server_connection(mcp_server_url):
-    try:
-        async with sse_client(mcp_server_url) as (read_stream, write_stream):
-            async with ClientSession(read_stream, write_stream) as session:
-                await session.initialize()
-                assert session is not None
-    except Exception as e:
-        pytest.skip(f"MCP server not available: {e}")
+def test_predict_survival_with_successful_api_call():
+    """Test predict_survival avec une API qui retourne survived."""
+    with patch.object(requests, "post") as mock_post:
+        mock_response = Mock()
+        mock_response.json.return_value = [1]
+        mock_response.raise_for_status = Mock()
+        mock_post.return_value = mock_response
+
+        result = predict_survival.fn(pclass=1, sex="female", sibsp=0, parch=0)
+
+        assert "SURVIVED" in result
+        assert "Good news" in result
+        mock_post.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_mcp_server_list_tools(mcp_server_url):
-    try:
-        async with sse_client(mcp_server_url) as (read_stream, write_stream):
-            async with ClientSession(read_stream, write_stream) as session:
-                await session.initialize()
-                tools_result = await session.list_tools()
+def test_predict_survival_with_death_prediction():
+    """Test predict_survival avec une API qui retourne not survived."""
+    with patch.object(requests, "post") as mock_post:
+        mock_response = Mock()
+        mock_response.json.return_value = [0]
+        mock_response.raise_for_status = Mock()
+        mock_post.return_value = mock_response
 
-                assert len(tools_result.tools) > 0
-                assert tools_result.tools[0].name == "predict_survival"
-                assert "predict" in tools_result.tools[0].description.lower()
-    except Exception as e:
-        pytest.skip(f"MCP server not available: {e}")
+        result = predict_survival.fn(pclass=3, sex="male", sibsp=0, parch=0)
+
+        assert "NOT have survived" in result
+        assert "Unfortunately" in result
 
 
-@pytest.mark.asyncio
-async def test_mcp_server_predict_first_class_female(mcp_server_url):
-    try:
-        async with sse_client(mcp_server_url) as (read_stream, write_stream):
-            async with ClientSession(read_stream, write_stream) as session:
-                await session.initialize()
+def test_predict_survival_handles_api_errors():
+    """Test que predict_survival gère gracieusement les erreurs API."""
+    with patch.object(requests, "post") as mock_post:
+        mock_post.side_effect = Exception("Connection timeout")
 
-                result = await session.call_tool(
-                    "predict_survival", {"pclass": 1, "sex": "female", "sibsp": 1, "parch": 0}
-                )
+        result = predict_survival.fn(pclass=1, sex="female", sibsp=0, parch=0)
 
-                assert result.content is not None
-                assert len(result.content) > 0
-                assert "survived" in result.content[0].text.lower()
-    except Exception as e:
-        pytest.skip(f"MCP server not available: {e}")
+        assert "error" in result.lower()
+        assert "Connection timeout" in result
 
 
 @pytest.mark.asyncio
-async def test_mcp_server_predict_third_class_male(mcp_server_url):
-    try:
-        async with sse_client(mcp_server_url) as (read_stream, write_stream):
-            async with ClientSession(read_stream, write_stream) as session:
-                await session.initialize()
+async def test_health_check_returns_healthy():
+    """Test que le health check retourne le bon statut."""
 
-                result = await session.call_tool(
-                    "predict_survival", {"pclass": 3, "sex": "male", "sibsp": 0, "parch": 0}
-                )
+    mock_request = Mock(spec=Request)
+    response = await health_check(mock_request)
 
-                assert result.content is not None
-                assert len(result.content) > 0
-                assert result.content[0].text is not None
-    except Exception as e:
-        pytest.skip(f"MCP server not available: {e}")
+    assert response.status_code == 200
+    assert b"healthy" in response.body

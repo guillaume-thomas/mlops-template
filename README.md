@@ -252,4 +252,3 @@ Template éducatif - Usage libre pour l'enseignement
 **Questions fréquentes** : Voir [ARCHITECTURE_MCP.md](ARCHITECTURE_MCP.md)
 
 **Auteur** : Template MLOps pour SES
-
