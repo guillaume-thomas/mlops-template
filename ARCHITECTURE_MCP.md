@@ -10,15 +10,15 @@ Ce projet utilise le **Model Context Protocol (MCP)** pour permettre à un chatb
 ┌─────────────────────────────────────────────────────────────────┐
 │                         CHATBOT                                 │
 │  Interface Streamlit + LangChain + GitHub Models (gpt-4o-mini) │
-│                    (Client MCP SSE)                             │
+│              (Client MCP Streamable HTTP)                       │
 └────────────────────────────┬────────────────────────────────────┘
                              │
-                             │ SSE (Server-Sent Events)
-                             │ JSON-RPC over HTTP
+                             │ Streamable HTTP Transport
+                             │ JSON-RPC over HTTP POST
                              │
 ┌────────────────────────────▼────────────────────────────────────┐
 │                      MCP SERVER                                 │
-│          FastAPI exposant des "tools" via protocole MCP         │
+│          FastMCP exposant des "tools" via protocole MCP         │
 │                    Tool: predict_survival                       │
 └────────────────────────────┬────────────────────────────────────┘
                              │
@@ -27,7 +27,7 @@ Ce projet utilise le **Model Context Protocol (MCP)** pour permettre à un chatb
 ┌────────────────────────────▼────────────────────────────────────┐
 │                        API ML                                   │
 │         FastAPI avec modèle Random Forest (Titanic)             │
-│                  Endpoint: POST /predict                        │
+│                  Endpoint: POST /infer                          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -37,9 +37,9 @@ Ce projet utilise le **Model Context Protocol (MCP)** pour permettre à un chatb
 **Rôle** : Faire des prédictions de survie sur le Titanic
 
 - Exposé sur le port **8080**
-- Endpoint : `POST /predict`
-- Reçoit : `{pclass: 3, sex: "male", sibsp: 0, parch: 0}`
-- Retourne : `{prediction: 0, probability: 0.15}`
+- Endpoint : `POST /infer`
+- Reçoit : `{pclass: 3, sex: "male", sibSp: 0, parch: 0}`
+- Retourne : `[0]` ou `[1]` (liste)
 
 **C'est un service ML classique.**
 
@@ -49,7 +49,7 @@ Ce projet utilise le **Model Context Protocol (MCP)** pour permettre à un chatb
 **Rôle** : Exposer l'API ML comme un "tool" MCP
 
 - Exposé sur le port **8000**
-- Endpoint SSE : `GET /sse` (pour le protocole MCP)
+- Endpoint HTTP Streamable : `POST /mcp` (pour le protocole MCP)
 - Tool MCP : `predict_survival`
 - Appelle l'API ML en interne
 
@@ -70,53 +70,41 @@ Un tool MCP est une fonction que l'IA peut appeler :
 }
 ```
 
-#### Qu'est-ce que SSE ?
-**Server-Sent Events** : un protocole HTTP qui permet au serveur d'envoyer des messages en continu au client. Utilisé par MCP pour la communication asynchrone.
+#### Qu'est-ce que le transport Streamable HTTP ?
+**Streamable HTTP** est le transport moderne recommandé pour MCP. Il permet :
+- Communication bidirectionnelle sur HTTP standard
+- JSON-RPC pour les messages structurés
+- Support du streaming pour les réponses longues
+- Compatibilité avec les infrastructures HTTP existantes
 
-#### Pourquoi GET pour `/sse` ?
+C'est le transport par défaut pour tous les nouveaux projets MCP.
 
-Le endpoint SSE utilise **GET** (et non POST) car :
+#### Pourquoi utiliser FastMCP ?
 
-1. **Flux unidirectionnel** : SSE est conçu pour des flux de données serveur → client
-2. **Standard HTTP** : SSE est basé sur la spécification HTML5 qui utilise GET
-3. **Connexion persistante** : Le client ouvre une connexion HTTP longue durée avec GET
-4. **Media type spécial** : `text/event-stream` indique au navigateur/client que c'est du SSE
-
-**Comment ça fonctionne avec le SDK MCP** :
+**FastMCP** est une API haut niveau qui simplifie la création de serveurs MCP :
 
 ```python
-from mcp.server.sse import SseServerTransport
-from starlette.routing import Route, Mount
+from mcp.server.fastmcp import FastMCP
 
-# Créer le transport SSE
-sse = SseServerTransport("/messages")
+mcp = FastMCP(
+    name="titanic-mcp-server",
+    streamable_http_path="/mcp",  # Endpoint HTTP Streamable
+)
 
-# Handler SSE utilisant le SDK
-async def handle_sse(request: Request):
-    async with sse.connect_sse(
-        request.scope, request.receive, request._send
-    ) as streams:
-        await mcp.run(
-            streams[0],  # Read stream
-            streams[1],  # Write stream
-            mcp.create_initialization_options()
-        )
-    return Response()  # Important : retourner Response vide
+@mcp.tool()
+def predict_survival(pclass: int, sex: str, sibsp: int, parch: int) -> str:
+    # Votre logique ici
+    return "survived" or "did not survive"
 
-# Routes Starlette
-routes = [
-    Route("/sse", endpoint=handle_sse, methods=["GET"]),
-    Mount("/messages", app=sse.handle_post_message),  # ← Gère les POSTs automatiquement
-]
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")
 ```
 
-**Ce qui se passe** :
-1. Le client fait `GET /sse` et garde la connexion ouverte
-2. Le serveur envoie `event: endpoint` avec `data: /messages`
-3. Le client envoie ses messages JSON-RPC via `POST /messages/*`
-4. Le SDK `SseServerTransport` gère automatiquement la liaison entre les deux
-5. Les réponses sont streamées via SSE
-6. **Tout est géré par le SDK !** (sessions, queues, format SSE, etc.)
+**Avantages de FastMCP** :
+- Décorateurs simples (`@mcp.tool()`)
+- Gère automatiquement le transport HTTP Streamable
+- Validation automatique des schémas
+- Moins de code boilerplate
 
 ---
 
@@ -126,9 +114,32 @@ routes = [
 - Exposé sur le port **8501**
 - Interface : Streamlit
 - IA : GitHub Models (gpt-4o-mini) via LangChain
-- Client MCP : Se connecte au MCP Server
+- Client MCP : Se connecte au MCP Server via HTTP Streamable
 
 **C'est l'interface utilisateur.**
+
+#### Comment le client se connecte au serveur MCP ?
+
+```python
+from mcp.client.streamable_http import streamablehttp_client
+from mcp import ClientSession
+
+# Se connecter au serveur MCP
+async with streamablehttp_client("http://mcp-server:8000/mcp") as (read, write, _):
+    session = ClientSession(read, write)
+    await session.initialize()
+    
+    # Lister les tools disponibles
+    tools = await session.list_tools()
+    
+    # Appeler un tool
+    result = await session.call_tool("predict_survival", {
+        "pclass": 3,
+        "sex": "male",
+        "sibsp": 1,
+        "parch": 0
+    })
+```
 
 ---
 
@@ -169,11 +180,11 @@ routes = [
 6. **Titanic Tool** fait l'appel à l'API ML
    ```python
    response = requests.post(
-       "http://titanic-api:8080/predict",
-       json={"pclass": 3, "sex": "male", "sibsp": 1, "parch": 0}
+       "http://titanic-api:8080/infer",
+       json={"pclass": 3, "sex": "male", "sibSp": 0, "parch": 0}
    )
    ```
-   - Fichier : `src/summit/mcp_server/titanic_tool.py` (ligne 45)
+   - Fichier : `src/summit/mcp_server/server.py` (fonction `predict_survival`)
 
 7. **API ML** retourne la prédiction
    ```json

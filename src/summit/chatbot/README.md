@@ -63,12 +63,10 @@ Voir : **Actions → Deploy Titanic Chatbot**
 ```
 src/summit/chatbot/
 ├── app.py          # Application Streamlit
-└── agent.py        # Agent LangChain avec MCP client SSE
+└── agent.py        # Agent LangChain avec FastMCP client
 
 src/summit/mcp_server/
-├── server.py       # Serveur MCP FastAPI avec SSE
-├── titanic_tool.py # Tool MCP pour prédictions Titanic
-└── __main__.py     # Point d'entrée du serveur
+└── server.py       # Serveur MCP FastMCP avec Streamable HTTP
 
 k8s/chatbot/
 ├── Dockerfile      # Image Docker chatbot

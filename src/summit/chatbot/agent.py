@@ -5,8 +5,7 @@ from typing import Any
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import StructuredTool
-from mcp import ClientSession, Tool
-from mcp.client.sse import sse_client
+from fastmcp import Client
 
 
 SYSTEM_PROMPT = """You are a helpful assistant that predicts Titanic passenger survival.
@@ -29,64 +28,64 @@ Be friendly and explain predictions clearly."""
 
 class ChatbotAgent:
     def __init__(self) -> None:
-        self.mcp_url = os.getenv(
-            "MCP_SERVER_URL", "http://titanic-mcp-server.gthomas59800-dev.svc.cluster.local:8000/sse"
+        mcp_server_host = os.getenv(
+            "MCP_SERVER_HOST", "http://titanic-mcp-server.gthomas59800-dev.svc.cluster.local:8000"
         )
+        self.mcp_config = {
+            "mcpServers": {
+                "titanic": {
+                    "url": f"{mcp_server_host}/mcp",
+                    "transport": "streamable-http",
+                }
+            }
+        }
         self.llm = ChatOpenAI(
             model=os.getenv("LLM_MODEL", "gpt-4o-mini"),
             api_key=os.getenv("OPENAI_API_KEY", "dummy-key"),
             base_url=os.getenv("OPENAI_BASE_URL", "https://models.github.ai/inference"),
             temperature=0.7,
         )
-        self.mcp_session = None
-        self._sse_context = None
-        self._loop = None
 
-    async def _init_mcp(self) -> None:
-        self._sse_context = sse_client(self.mcp_url)
-        read_stream, write_stream = await asyncio.wait_for(self._sse_context.__aenter__(), timeout=10.0)
+    async def _call_mcp_tool(self, tool_name: str, arguments: dict[str, Any]) -> str:
+        """Appelle un tool MCP et extrait le résultat texte."""
+        async with Client(self.mcp_config) as mcp_client:
+            await mcp_client.initialize()
+            result = await mcp_client.call_tool(tool_name, arguments=arguments)
 
-        self.mcp_session = ClientSession(read_stream, write_stream)
-        await self.mcp_session.__aenter__()
-        await asyncio.wait_for(self.mcp_session.initialize(), timeout=10.0)
+            if hasattr(result, 'content') and result.content:
+                content = result.content[0]
+                if hasattr(content, 'text'):
+                    return content.text
+                return str(content)
+            return str(result)
 
-        tools_result = await asyncio.wait_for(self.mcp_session.list_tools(), timeout=10.0)
-        langchain_tools = [self._create_langchain_tool(t) for t in tools_result.tools]
-        self.llm = self.llm.bind_tools(langchain_tools)
+    async def chat_async(self, message: str) -> str:
+        """Chat async qui charge les tools MCP et les utilise via le LLM."""
+        async with Client(self.mcp_config) as mcp_client:
+            await mcp_client.initialize()
+            tools_list = await mcp_client.list_tools()
 
-    def _create_langchain_tool(self, mcp_tool: Tool) -> StructuredTool:
-        async def call_mcp(**kwargs: dict[str, Any]) -> str:
-            result = await self.mcp_session.call_tool(mcp_tool.name, kwargs)
-            return result.content[0].text if result.content else "No result"
+            langchain_tools = [
+                StructuredTool.from_function(
+                    func=lambda: None,
+                    name=tool.name,
+                    description=tool.description,
+                )
+                for tool in tools_list
+            ]
 
-        return StructuredTool.from_function(
-            func=call_mcp, name=mcp_tool.name, description=mcp_tool.description, coroutine=call_mcp
-        )
+            llm_with_tools = self.llm.bind_tools(langchain_tools)
 
-    async def _chat_async(self, message: str) -> str:
-        if not self.mcp_session:
-            await self._init_mcp()
+            messages = [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=message)]
+            response = llm_with_tools.invoke(messages)
 
-        messages = [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=message)]
+            if response.tool_calls:
+                tool_call = response.tool_calls[0]
+                return await self._call_mcp_tool(tool_call["name"], tool_call["args"])
 
-        response = self.llm.invoke(messages)
-
-        if response.tool_calls:
-            tool_call = response.tool_calls[0]
-            result = await self.mcp_session.call_tool(tool_call["name"], tool_call["args"])
-            return result.content[0].text if result.content else "No result"
-
-        return response.content
+            return response.content
 
     def chat(self, message: str) -> str:
-        if not self._loop:
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
+        """Wrapper synchrone pour Streamlit."""
+        return asyncio.run(self.chat_async(message))
 
-        return self._loop.run_until_complete(self._chat_async(message))
-
-    async def close(self) -> None:
-        if self.mcp_session:
-            await self.mcp_session.__aexit__(None, None, None)
-        if self._sse_context:
-            await self._sse_context.__aexit__(None, None, None)
