@@ -1,4 +1,5 @@
-name: test
+name: Train model and Deploy Summit MLOps API
+
 on:
   push:
     branches:
@@ -9,8 +10,11 @@ on:
     paths:
       - 'src/summit/api/**'
       - 'src/summit/training/**'
-      - 'k8s/experiment/**'
       - 'src/summit/ci/**'
+      - '/tests/api/**'
+      - '/tests/training/**'
+      - '/tests/ci/**'
+      - 'k8s/experiment/**'
       - 'k8s/api/**'
       - '.github/workflows/ct-ci-cd.yaml'
   pull_request:
@@ -32,15 +36,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python 3.11
+      - name: Set up Python 3.13
         uses: actions/setup-python@v3
         with:
-          python-version: 3.11
+          python-version: 3.13
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install uv
-          uv sync --no-group api --group training
+          uv sync --group training --group api --group dev
+      - name: Launch unit tests
+        run: |
+          uv run pytest tests/api tests/ci tests/training
+      - name: Resync only training group
+        run: |
+          uv sync --group training
       - name: Configure docker and kubectl
         run: |
           docker login -u="${{vars.QUAY_ROBOT_USERNAME}}" -p="${{secrets.QUAY_ROBOT_TOKEN}}" quay.io

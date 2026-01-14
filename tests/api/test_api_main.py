@@ -1,7 +1,14 @@
-from unittest.mock import patch
-from summit.api.infer import Pclass, Sex, Passenger
-from summit.api.main import main
-from summit.api import infer
+from unittest.mock import patch, Mock, mock_open
+import numpy as np
+
+
+mock_model = Mock()
+mock_model.predict.return_value = np.array([1])
+
+with patch("builtins.open", mock_open(read_data=b"mock")), patch("pickle.load", return_value=mock_model):
+    from summit.api.infer import Pclass, Sex, Passenger
+    from summit.api.main import main
+    from summit.api import infer
 
 
 def test_api_main_is_runnable():

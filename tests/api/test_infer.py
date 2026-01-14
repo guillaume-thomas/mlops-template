@@ -1,11 +1,29 @@
-from fastapi.testclient import TestClient
+from unittest.mock import Mock, patch, mock_open
+import numpy as np
 import pytest
+from fastapi.testclient import TestClient
 
-from summit.api.infer import app
+
+mock_model = Mock()
+mock_model.predict.return_value = np.array([1])
+
+with patch("builtins.open", mock_open(read_data=b"mock")), patch("pickle.load", return_value=mock_model):
+    from summit.api.infer import app
+
+
+@pytest.fixture
+def mock_infer_model():
+    """Mock du modèle ML pour les tests."""
+    model = Mock()
+    model.predict.return_value = np.array([1])
+
+    with patch("summit.api.infer.model", model):
+        yield model
 
 
 @pytest.fixture
 def client():
+    """Client de test."""
     return TestClient(app)
 
 
@@ -16,36 +34,39 @@ def test_health_endpoint(client):
     assert response.json() == {"status": "OK"}
 
 
-def test_infer_first_class_female(client):
+def test_infer_first_class_female(client, mock_infer_model):
     """Test prédiction pour une femme de 1ère classe."""
+    mock_infer_model.predict.return_value = np.array([1])
     payload = {"pclass": 1, "sex": "female", "sibSp": 0, "parch": 0}
     response = client.post("/infer", json=payload)
     assert response.status_code == 200
     result = response.json()
-    assert isinstance(result, list)
-    assert len(result) == 1
-    assert result[0] in [0, 1]
+    assert result == [1]
+    mock_infer_model.predict.assert_called_once()
 
 
-def test_infer_third_class_male(client):
+def test_infer_third_class_male(client, mock_infer_model):
     """Test prédiction pour un homme de 3ème classe."""
+    mock_infer_model.reset_mock()
+    mock_infer_model.predict.return_value = np.array([0])
     payload = {"pclass": 3, "sex": "male", "sibSp": 0, "parch": 0}
     response = client.post("/infer", json=payload)
     assert response.status_code == 200
     result = response.json()
-    assert isinstance(result, list)
-    assert len(result) == 1
-    assert result[0] in [0, 1]
+    assert result == [0]
+    mock_infer_model.predict.assert_called_once()
 
 
-def test_infer_with_family(client):
+def test_infer_with_family(client, mock_infer_model):
     """Test prédiction avec des membres de la famille."""
+    mock_infer_model.reset_mock()
+    mock_infer_model.predict.return_value = np.array([1])
     payload = {"pclass": 2, "sex": "female", "sibSp": 1, "parch": 2}
     response = client.post("/infer", json=payload)
     assert response.status_code == 200
     result = response.json()
-    assert isinstance(result, list)
-    assert len(result) == 1
+    assert result == [1]
+    mock_infer_model.predict.assert_called_once()
 
 
 def test_infer_invalid_pclass(client):

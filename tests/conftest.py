@@ -1,18 +1,38 @@
-import pytest
-import mlflow
+import os
 import tempfile
 import shutil
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-import os
+
+import pytest
 
 os.environ["OTEL_SDK_DISABLED"] = "true"
 os.environ["JAEGER_ENDPOINT"] = "http://localhost:4318/v1/traces"
+
+try:
+    import mlflow
+
+    HAS_MLFLOW = True
+except ImportError:
+    HAS_MLFLOW = False
+
+try:
+    import opentelemetry
+    import opentelemetry.sdk.trace.export
+    import opentelemetry.exporter.otlp.proto.http.trace_exporter  # noqa: F401
+
+    HAS_OPENTELEMETRY = True
+except (ImportError, AttributeError):
+    HAS_OPENTELEMETRY = False
 
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_mlflow_tracking() -> None:
     """Configure MLflow pour utiliser un répertoire temporaire pendant les tests."""
+    if not HAS_MLFLOW:
+        yield
+        return
+
     with tempfile.TemporaryDirectory() as tmp_dir:
         mlflow.set_tracking_uri(f"file://{tmp_dir}/mlruns")
         yield
@@ -23,6 +43,9 @@ def setup_mlflow_tracking() -> None:
 def cleanup_mlflow_artifacts() -> None:
     """Nettoie les artifacts MLflow après chaque test."""
     yield
+
+    if not HAS_MLFLOW:
+        return
 
     mlruns_dir = Path("mlruns")
     if mlruns_dir.exists():
@@ -36,6 +59,10 @@ def cleanup_mlflow_artifacts() -> None:
 @pytest.fixture(scope="session", autouse=True)
 def mock_opentelemetry() -> None:
     """Mock OpenTelemetry pour éviter les connexions réseau dans les tests."""
+    if not HAS_OPENTELEMETRY:
+        yield
+        return
+
     mock_processor = MagicMock()
     mock_processor.force_flush = Mock(return_value=True)
     mock_processor.shutdown = Mock(return_value=True)

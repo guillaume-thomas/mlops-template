@@ -2373,6 +2373,7 @@ chatbot = [
     { name = "streamlit" },
 ]
 dev = [
+    { name = "httpx" },
     { name = "pre-commit" },
     { name = "pyright" },
     { name = "pytest" },
@@ -2416,6 +2417,7 @@ chatbot = [
     { name = "streamlit", specifier = ">=1.40.0" },
 ]
 dev = [
+    { name = "httpx", specifier = ">=0.28.0" },
     { name = "pre-commit", specifier = ">=3.7.1" },
     { name = "pyright", specifier = ">=1.1.407" },
     { name = "pytest", specifier = ">=8.0.0" },

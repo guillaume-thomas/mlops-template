@@ -53,4 +53,5 @@ dev = [
     "pre-commit>=3.7.1",
     "ruff>=0.14.9",
     "pyright>=1.1.407",
+    "httpx>=0.28.0",
 ]
