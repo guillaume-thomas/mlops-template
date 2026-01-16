@@ -302,3 +302,73 @@ Ce projet est **excellent pour un cours MLOps** car il montre :
 4. Le chatbot le découvre automatiquement !
 
 **Aucune modification du chatbot nécessaire** grâce à MCP ! 🎉
+
+---
+
+## OAuth2 - Authentification complète
+
+L'API ML est maintenant protégée par OAuth2, et le MCP Server s'authentifie automatiquement.
+
+### Architecture
+```
+MCP Server → récupère token OAuth2 → appelle API avec Authorization: Bearer <token>
+```
+
+### Configuration
+
+Dans GitHub Actions, ajouter ces **secrets** :
+- `OAUTH2_TOKEN_URL` : URL du serveur d'autorisation (ex: `https://auth.example.com/oauth/token`)
+- `OAUTH2_CLIENT_ID` : Identifiant client
+- `OAUTH2_CLIENT_SECRET` : Secret client
+
+Le workflow CI/CD crée automatiquement le secret Kubernetes `mcp-oauth2-credentials`.
+
+### Fonctionnement côté MCP Server
+```python
+token = await token_manager.get_token()
+headers = {"Authorization": f"Bearer {token}"}
+response = await client.post(api_url, json=payload, headers=headers)
+```
+
+**Caractéristiques** :
+- Cache automatique du token (1h par défaut)
+- Renouvellement 60s avant expiration
+- Fonctionne sans OAuth2 (mode dégradé pour dev/test)
+- Scope en dur : `"api:read"`
+
+### Protection côté API avec validation JWT complète
+```python
+from fastapi import Depends
+from summit.api.auth import verify_token
+
+@app.post("/infer")
+def infer(passenger: Passenger, token: str = Depends(verify_token("api:read"))) -> list:
+    # Endpoint protégé avec validation JWT complète
+```
+
+**Validation JWT en 4 étapes** :
+1. **Signature valide** : Vérifie que le JWT est signé avec `OAUTH2_JWT_SECRET`
+2. **Token non expiré** : Vérifie le claim `exp` (expiration timestamp)
+3. **Audience correcte** : Vérifie le claim `aud` correspond à `OAUTH2_JWT_AUDIENCE`
+4. **Scope suffisant** : Vérifie que le scope requis (`api:read`) est présent dans le claim `scope`
+
+**Codes d'erreur** :
+- **401 Unauthorized** : Token absent, invalide, expiré, ou mauvaise audience
+- **403 Forbidden** : Token valide mais scope insuffisant
+
+**Configuration** :
+- `OAUTH2_JWT_SECRET` : Clé secrète pour vérifier la signature JWT (optionnel, si absent accepte tous les tokens)
+- `OAUTH2_JWT_ALGORITHM` : Algorithme de signature (par défaut: `"HS256"`)
+- `OAUTH2_JWT_AUDIENCE` : Audience attendue (par défaut: `"titanic-api"`)
+
+**Exemple de JWT valide** :
+```json
+{
+  "sub": "user123",
+  "scope": "api:read api:write",
+  "aud": "titanic-api",
+  "exp": 1737139200
+}
+```
+
+**Note** : Cette implémentation utilise PyJWT pour une vraie validation de tokens JWT avec vérification de l'expiration et de l'audience. En production avec des clés asymétriques (RS256), utilisez la clé publique pour valider.

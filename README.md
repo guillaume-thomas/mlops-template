@@ -172,9 +172,75 @@ Le projet utilise GitHub Actions pour le déploiement automatique :
 
 #### MCP Server
 - `TITANIC_API_URL` : URL de l'API ML (défaut: service Kubernetes)
+- `AUTH0_DOMAIN` : Domaine Auth0 (construit automatiquement l'URL du token endpoint)
+- `OAUTH2_CLIENT_ID` : Client ID OAuth2 (Auth0 Machine-to-Machine app)
+- `OAUTH2_CLIENT_SECRET` : Client Secret OAuth2
 
 #### API ML
 - `JAEGER_ENDPOINT` : URL de Jaeger pour les traces (défaut: service Kubernetes)
+- `OAUTH2_DOMAIN` : Domaine Auth0 (ex: votre-tenant.eu.auth0.com)
+- `OAUTH2_JWT_AUDIENCE` : Audience JWT (défaut: titanic-api)
+
+### Configuration Auth0
+
+L'API est protégée par OAuth2 avec Auth0 utilisant JWKS (RS256). Pour configurer :
+
+1. **Créer une API dans Auth0** :
+   - Dashboard Auth0 > Applications > APIs > Create API
+   - Identifier: `titanic-api` (ou autre, à configurer dans `OAUTH2_JWT_AUDIENCE`)
+   - Signing Algorithm: **RS256**
+
+2. **Créer une Machine-to-Machine Application** :
+   - Dashboard Auth0 > Applications > Create Application > Machine to Machine
+   - Autoriser l'application à accéder à l'API créée
+   - Définir un scope `api:read`
+   - Récupérer le Client ID et Client Secret
+
+3. **Configurer les variables et secrets GitHub** :
+   - **Variable** `OAUTH2_DOMAIN` : Votre domaine OAuth2 (ex: `votre-tenant.eu.auth0.com`)
+   - **Secret** `OAUTH2_CLIENT_ID` : Client ID de l'app M2M
+   - **Secret** `OAUTH2_CLIENT_SECRET` : Client Secret de l'app M2M
+
+Le serveur MCP récupère automatiquement un token OAuth2 et le met en cache jusqu'à expiration.
+Le domaine Auth0 est injecté automatiquement dans les manifests Kubernetes lors du déploiement.
+L'URL du token endpoint (`https://{OAUTH2_DOMAIN}/oauth/token`) est construite automatiquement.
+
+### Troubleshooting OAuth2
+
+#### Erreur 403 Forbidden sur `/oauth/token`
+
+Si vous obtenez une erreur `403 Forbidden` lors de la récupération du token OAuth2 :
+
+1. **Vérifier les credentials** :
+   - Assurez-vous que `OAUTH2_CLIENT_ID` et `OAUTH2_CLIENT_SECRET` sont corrects
+   - Dans Auth0 : Applications > Votre app M2M > Settings > Basic Information
+   - Copiez exactement le Client ID et Client Secret
+
+2. **Vérifier l'autorisation de l'application** :
+   - Dans Auth0 : Applications > Votre app M2M > APIs
+   - Vérifiez que l'application est **autorisée** à accéder à votre API `titanic-api`
+   - Si non autorisée : cliquez sur "Authorize" et sélectionnez les scopes nécessaires (`api:read`)
+
+3. **Vérifier le domaine Auth0** :
+   - La variable `OAUTH2_DOMAIN` doit être au format : `votre-tenant.region.auth0.com`
+   - Exemple : `dev-37phazyvpg13nj66.eu.auth0.com`
+   - **NE PAS** inclure `https://` ou `/oauth/token`
+
+4. **Vérifier les logs** :
+   - Consultez les logs du serveur MCP pour voir le détail de l'erreur
+   - `kubectl logs -l app=titanic-mcp-server`
+
+#### Erreur 401 Unauthorized sur l'API
+
+Si l'API retourne 401 après avoir obtenu le token :
+
+1. **Vérifier l'audience** :
+   - Le token doit avoir l'audience `titanic-api`
+   - Vérifiez que l'API Auth0 a bien cet identifier
+
+2. **Vérifier les scopes** :
+   - L'application M2M doit avoir le scope `api:read` autorisé
+   - Vérifiez dans Auth0 : APIs > titanic-api > Machine to Machine Applications
 
 ## 📁 Structure du projet
 

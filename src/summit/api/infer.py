@@ -4,13 +4,15 @@ from dataclasses import dataclass
 from enum import Enum
 import pandas as pd
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter as HTTPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.sdk.resources import Resource
+
+from summit.api.auth import verify_token
 
 
 JAEGER_ENDPOINT = os.getenv("JAEGER_ENDPOINT", "http://jaeger.gthomas59800-dev.svc.cluster.local:4318/v1/traces")
@@ -59,7 +61,7 @@ def health() -> dict:
 
 
 @app.post("/infer")
-def infer(passenger: Passenger) -> list:
+def infer(passenger: Passenger, token: str = Depends(verify_token("api:read"))) -> list:
     with tracer.start_as_current_span("model_inference") as span:
         span.set_attribute("passenger.pclass", passenger.pclass.value)
         span.set_attribute("passenger.sex", passenger.sex.value)

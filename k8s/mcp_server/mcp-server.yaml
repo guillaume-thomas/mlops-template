@@ -20,6 +20,20 @@ spec:
               value: "http://mlops-api-service.gthomas59800-dev.svc.cluster.local:8080"
             - name: PORT
               value: "8000"
+            - name: OAUTH2_DOMAIN
+              value: "PLACEHOLDER_OAUTH2_DOMAIN"
+            - name: OAUTH2_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-oauth2-credentials
+                  key: client-id
+                  optional: true
+            - name: OAUTH2_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-oauth2-credentials
+                  key: client-secret
+                  optional: true
           ports:
             - containerPort: 8000
               name: http

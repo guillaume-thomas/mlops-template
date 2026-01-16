@@ -1,8 +1,10 @@
 import os
-import requests
+import httpx
 from fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
+
+from summit.mcp_server.auth import token_manager
 
 API_URL = os.getenv("TITANIC_API_URL", "http://mlops-api-service.gthomas59800-dev.svc.cluster.local:8080")
 
@@ -10,7 +12,7 @@ mcp = FastMCP("titanic-mcp-server")
 
 
 @mcp.tool()
-def predict_survival(pclass: int, sex: str, sibsp: int, parch: int) -> str:
+async def predict_survival(pclass: int, sex: str, sibsp: int, parch: int) -> str:
     """
     Prédit la survie d'un passager du Titanic.
 
@@ -26,9 +28,16 @@ def predict_survival(pclass: int, sex: str, sibsp: int, parch: int) -> str:
     """
     try:
         payload = {"pclass": pclass, "sex": sex, "sibSp": sibsp, "parch": parch}
-        resp = requests.post(f"{API_URL}/infer", json=payload, timeout=10)
-        resp.raise_for_status()
-        result = resp.json()
+
+        headers = {"Content-Type": "application/json"}
+        token = await token_manager.get_token()
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(f"{API_URL}/infer", json=payload, headers=headers, timeout=10.0)
+            resp.raise_for_status()
+            result = resp.json()
 
         prediction = result[0] if isinstance(result, list) else result
         survived = bool(prediction)

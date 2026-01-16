@@ -61,10 +61,19 @@ jobs:
             --from-literal=github-models-token="${{ secrets.GH_MODELS_TOKEN }}"
           echo "✅ Secret created/updated"
 
+      - name: Delete Chatbot pod to refresh secret
+        run: |
+          POD=$(kubectl get pods -l app=${{ env.CHATBOT_DEPLOYMENT_NAME }} -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+          if [ -n "$POD" ]; then
+            kubectl delete pod $POD
+            echo "✅ Pod ${{ env.CHATBOT_DEPLOYMENT_NAME }} supprimé, il va être recréé avec le secret à jour"
+          else
+            echo "⚠️ Aucun pod ${{ env.CHATBOT_DEPLOYMENT_NAME }} trouvé à supprimer (premier déploiement)"
+          fi
+
       - name: Deploy to OpenShift
         run: |
           kubectl apply -f k8s/chatbot/chatbot.yaml
-          kubectl rollout restart deployment/${{ env.CHATBOT_DEPLOYMENT_NAME }}
           echo "✅ Deployment updated"
 
       - name: Get route URL

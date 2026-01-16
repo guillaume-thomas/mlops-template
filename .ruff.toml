@@ -46,7 +46,7 @@ ignore = [
 ]
 
 [lint.per-file-ignores]
-"test_*.py" = ["S101", "D", "ANN", "BLE001", "SIM117", "UP041", "S104"]
+"test_*.py" = ["S101", "D", "ANN", "BLE001", "SIM117", "UP041", "S104", "S105"]
 
 [lint.pycodestyle]
 ignore-overlong-task-comments = true

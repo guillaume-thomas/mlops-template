@@ -4,4 +4,4 @@ export MLFLOW_S3_ENDPOINT_URL=http://minio-api-gthomas59800-dev.apps.rm3.7wse.p1
 export AWS_ACCESS_KEY_ID=minio
 export AWS_SECRET_ACCESS_KEY=minio123
 
-uv run mlflow run ./src/summit/training -e main --env-manager=local -P path=all_titanic.csv
+uv run mlflow run ../src/summit/training -e main --env-manager=local -P path=all_titanic.csv

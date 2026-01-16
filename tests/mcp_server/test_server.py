@@ -1,6 +1,5 @@
-from unittest.mock import patch, Mock
+from unittest.mock import patch, Mock, AsyncMock
 from summit.mcp_server.server import mcp, predict_survival, health_check
-import requests
 import pytest
 from starlette.requests import Request
 
@@ -12,41 +11,77 @@ def test_mcp_server_configuration():
     assert mcp.name == "titanic-mcp-server"
 
 
-def test_predict_survival_with_successful_api_call():
+@pytest.mark.asyncio
+async def test_predict_survival_with_successful_api_call():
     """Test predict_survival avec une API qui retourne survived."""
-    with patch.object(requests, "post") as mock_post:
-        mock_response = Mock()
-        mock_response.json.return_value = [1]
-        mock_response.raise_for_status = Mock()
-        mock_post.return_value = mock_response
+    mock_response = AsyncMock()
+    mock_response.json = lambda: [1]
+    mock_response.raise_for_status = lambda: None
 
-        result = predict_survival.fn(pclass=1, sex="female", sibsp=0, parch=0)
+    with (
+        patch("httpx.AsyncClient") as mock_client,
+        patch("summit.mcp_server.server.token_manager.get_token", return_value=None),
+    ):
+        mock_client.return_value.__aenter__.return_value.post = AsyncMock(return_value=mock_response)
+
+        result = await predict_survival.fn(pclass=1, sex="female", sibsp=0, parch=0)
 
         assert "SURVIVED" in result
         assert "Good news" in result
-        mock_post.assert_called_once()
 
 
-def test_predict_survival_with_death_prediction():
+@pytest.mark.asyncio
+async def test_predict_survival_with_death_prediction():
     """Test predict_survival avec une API qui retourne not survived."""
-    with patch.object(requests, "post") as mock_post:
-        mock_response = Mock()
-        mock_response.json.return_value = [0]
-        mock_response.raise_for_status = Mock()
-        mock_post.return_value = mock_response
+    mock_response = AsyncMock()
+    mock_response.json = lambda: [0]
+    mock_response.raise_for_status = lambda: None
 
-        result = predict_survival.fn(pclass=3, sex="male", sibsp=0, parch=0)
+    with (
+        patch("httpx.AsyncClient") as mock_client,
+        patch("summit.mcp_server.server.token_manager.get_token", return_value=None),
+    ):
+        mock_client.return_value.__aenter__.return_value.post = AsyncMock(return_value=mock_response)
+
+        result = await predict_survival.fn(pclass=3, sex="male", sibsp=0, parch=0)
 
         assert "NOT have survived" in result
         assert "Unfortunately" in result
 
 
-def test_predict_survival_handles_api_errors():
-    """Test que predict_survival gère gracieusement les erreurs API."""
-    with patch.object(requests, "post") as mock_post:
-        mock_post.side_effect = Exception("Connection timeout")
+@pytest.mark.asyncio
+async def test_predict_survival_with_oauth2_token():
+    """Test que predict_survival utilise le token OAuth2 quand disponible."""
+    mock_response = AsyncMock()
+    mock_response.json = lambda: [1]
+    mock_response.raise_for_status = lambda: None
 
-        result = predict_survival.fn(pclass=1, sex="female", sibsp=0, parch=0)
+    with (
+        patch("httpx.AsyncClient") as mock_client,
+        patch("summit.mcp_server.server.token_manager.get_token", return_value="test-token-123") as mock_get_token,
+    ):
+        mock_post = AsyncMock(return_value=mock_response)
+        mock_client.return_value.__aenter__.return_value.post = mock_post
+
+        result = await predict_survival.fn(pclass=1, sex="female", sibsp=0, parch=0)
+
+        assert "SURVIVED" in result
+        mock_get_token.assert_called_once()
+        call_kwargs = mock_post.call_args.kwargs
+        assert "headers" in call_kwargs
+        assert call_kwargs["headers"]["Authorization"] == "Bearer test-token-123"
+
+
+@pytest.mark.asyncio
+async def test_predict_survival_handles_api_errors():
+    """Test que predict_survival gère gracieusement les erreurs API."""
+    with (
+        patch("httpx.AsyncClient") as mock_client,
+        patch("summit.mcp_server.server.token_manager.get_token", return_value=None),
+    ):
+        mock_client.return_value.__aenter__.return_value.post = AsyncMock(side_effect=Exception("Connection timeout"))
+
+        result = await predict_survival.fn(pclass=1, sex="female", sibsp=0, parch=0)
 
         assert "error" in result.lower()
         assert "Connection timeout" in result

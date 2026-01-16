@@ -1,13 +1,38 @@
-from unittest.mock import Mock, patch, mock_open
+from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
+import builtins
 
 
 mock_model = Mock()
 mock_model.predict.return_value = np.array([1])
 
-with patch("builtins.open", mock_open(read_data=b"mock")), patch("pickle.load", return_value=mock_model):
+
+def mock_verify_factory(scope):
+    async def _verify(credentials=None):
+        return "mock-token"
+
+    return _verify
+
+
+original_open = builtins.open
+
+
+def selective_mock_open(file, *args, **kwargs):
+    if "model.pkl" in str(file):
+        mock_file = Mock()
+        mock_file.__enter__ = Mock(return_value=mock_file)
+        mock_file.__exit__ = Mock(return_value=False)
+        return mock_file
+    return original_open(file, *args, **kwargs)
+
+
+with (
+    patch("builtins.open", side_effect=selective_mock_open),
+    patch("pickle.load", return_value=mock_model),
+    patch("summit.api.infer.verify_token", mock_verify_factory),
+):
     from summit.api.infer import app
 
 
@@ -38,7 +63,7 @@ def test_infer_first_class_female(client, mock_infer_model):
     """Test prédiction pour une femme de 1ère classe."""
     mock_infer_model.predict.return_value = np.array([1])
     payload = {"pclass": 1, "sex": "female", "sibSp": 0, "parch": 0}
-    response = client.post("/infer", json=payload)
+    response = client.post("/infer", json=payload, headers={"Authorization": "Bearer test-token"})
     assert response.status_code == 200
     result = response.json()
     assert result == [1]
@@ -50,7 +75,7 @@ def test_infer_third_class_male(client, mock_infer_model):
     mock_infer_model.reset_mock()
     mock_infer_model.predict.return_value = np.array([0])
     payload = {"pclass": 3, "sex": "male", "sibSp": 0, "parch": 0}
-    response = client.post("/infer", json=payload)
+    response = client.post("/infer", json=payload, headers={"Authorization": "Bearer test-token"})
     assert response.status_code == 200
     result = response.json()
     assert result == [0]
@@ -62,7 +87,7 @@ def test_infer_with_family(client, mock_infer_model):
     mock_infer_model.reset_mock()
     mock_infer_model.predict.return_value = np.array([1])
     payload = {"pclass": 2, "sex": "female", "sibSp": 1, "parch": 2}
-    response = client.post("/infer", json=payload)
+    response = client.post("/infer", json=payload, headers={"Authorization": "Bearer test-token"})
     assert response.status_code == 200
     result = response.json()
     assert result == [1]
@@ -72,19 +97,26 @@ def test_infer_with_family(client, mock_infer_model):
 def test_infer_invalid_pclass(client):
     """Test validation avec une classe invalide."""
     payload = {"pclass": 5, "sex": "female", "sibSp": 0, "parch": 0}
-    response = client.post("/infer", json=payload)
+    response = client.post("/infer", json=payload, headers={"Authorization": "Bearer test-token"})
     assert response.status_code == 422
 
 
 def test_infer_invalid_sex(client):
     """Test validation avec un sexe invalide."""
     payload = {"pclass": 1, "sex": "unknown", "sibSp": 0, "parch": 0}
-    response = client.post("/infer", json=payload)
+    response = client.post("/infer", json=payload, headers={"Authorization": "Bearer test-token"})
     assert response.status_code == 422
 
 
 def test_infer_missing_field(client):
     """Test avec un champ manquant."""
     payload = {"pclass": 1, "sex": "male", "sibSp": 0}
-    response = client.post("/infer", json=payload)
+    response = client.post("/infer", json=payload, headers={"Authorization": "Bearer test-token"})
     assert response.status_code == 422
+
+
+def test_infer_without_token(client):
+    """Test que l'API refuse les requêtes sans token."""
+    payload = {"pclass": 1, "sex": "female", "sibSp": 0, "parch": 0}
+    response = client.post("/infer", json=payload)
+    assert response.status_code == 401

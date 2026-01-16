@@ -2362,6 +2362,7 @@ api = [
     { name = "opentelemetry-exporter-otlp" },
     { name = "opentelemetry-instrumentation-fastapi" },
     { name = "opentelemetry-sdk" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "uvicorn" },
 ]
 chatbot = [
@@ -2383,7 +2384,6 @@ dev = [
 mcp-server = [
     { name = "fastmcp" },
     { name = "httpx" },
-    { name = "requests" },
     { name = "uvicorn" },
 ]
 training = [
@@ -2406,6 +2406,7 @@ api = [
     { name = "opentelemetry-exporter-otlp", specifier = ">=1.39.0" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.60b0" },
     { name = "opentelemetry-sdk", specifier = ">=1.39.0" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8.0" },
     { name = "uvicorn", specifier = ">=0.37.0" },
 ]
 chatbot = [
@@ -2427,7 +2428,6 @@ dev = [
 mcp-server = [
     { name = "fastmcp", specifier = ">=0.4.0" },
     { name = "httpx", specifier = ">=0.28.0" },
-    { name = "requests", specifier = ">=2.32.0" },
     { name = "uvicorn", specifier = ">=0.37.0" },
 ]
 training = [

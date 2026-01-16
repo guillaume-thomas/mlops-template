@@ -1,11 +1,36 @@
-from unittest.mock import patch, Mock, mock_open
+from unittest.mock import patch, Mock
 import numpy as np
+import builtins
 
 
 mock_model = Mock()
 mock_model.predict.return_value = np.array([1])
 
-with patch("builtins.open", mock_open(read_data=b"mock")), patch("pickle.load", return_value=mock_model):
+
+def mock_verify_factory(scope):
+    async def _verify(credentials=None):
+        return "mock-token"
+
+    return _verify
+
+
+original_open = builtins.open
+
+
+def selective_mock_open(file, *args, **kwargs):
+    if "model.pkl" in str(file):
+        mock_file = Mock()
+        mock_file.__enter__ = Mock(return_value=mock_file)
+        mock_file.__exit__ = Mock(return_value=False)
+        return mock_file
+    return original_open(file, *args, **kwargs)
+
+
+with (
+    patch("builtins.open", side_effect=selective_mock_open),
+    patch("pickle.load", return_value=mock_model),
+    patch("summit.api.infer.verify_token", mock_verify_factory),
+):
     from summit.api.infer import Pclass, Sex, Passenger
     from summit.api.main import main
     from summit.api import infer

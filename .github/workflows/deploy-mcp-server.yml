@@ -14,7 +14,7 @@ on:
 env:
   MCP_SERVER_IMAGE_NAME: quay.io/gthomas59800/summit/mcp-server
   MCP_SERVER_DEPLOYMENT_NAME: titanic-mcp-server
-  MCP_SERVER_SERVICE_NAME: titanic-mcp-server
+  MCP_SERVER_SECRET_NAME: mcp-oauth2-credentials
 
 jobs:
   build-and-deploy:
@@ -50,17 +50,37 @@ jobs:
           docker build -f k8s/mcp_server/Dockerfile -t ${{ env.MCP_SERVER_IMAGE_NAME }}:latest .
           docker push ${{ env.MCP_SERVER_IMAGE_NAME }}:latest
 
+      - name: Create OAuth2 secret
+        run: |
+          if kubectl get secret ${{ env.MCP_SERVER_SECRET_NAME }} &>/dev/null; then
+            kubectl delete secret ${{ env.MCP_SERVER_SECRET_NAME }}
+          fi
+          kubectl create secret generic ${{ env.MCP_SERVER_SECRET_NAME }} \
+            --from-literal=client-id="${{ secrets.OAUTH2_CLIENT_ID }}" \
+            --from-literal=client-secret="${{ secrets.OAUTH2_CLIENT_SECRET }}" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          echo "✅ OAuth2 credentials secret created/updated"
+
+      - name: Delete MCP Server pod to refresh secret
+        run: |
+          POD=$(kubectl get pods -l app=${{ env.MCP_SERVER_DEPLOYMENT_NAME }} -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+          if [ -n "$POD" ]; then
+            kubectl delete pod $POD
+            echo "✅ Pod ${{ env.MCP_SERVER_DEPLOYMENT_NAME }} supprimé, il va être recréé avec le secret à jour"
+          else
+            echo "⚠️ Aucun pod ${{ env.MCP_SERVER_DEPLOYMENT_NAME }} trouvé à supprimer (premier déploiement)"
+          fi
+
+      - name: Configure MCP manifest with OAuth2 domain
+        run: |
+          sed -i 's|PLACEHOLDER_OAUTH2_DOMAIN|${{ vars.OAUTH2_DOMAIN }}|g' k8s/mcp_server/mcp-server.yaml
+          echo "✅ OAuth2 domain configured: ${{ vars.OAUTH2_DOMAIN }}"
+
       - name: Deploy to OpenShift
         run: |
           kubectl apply -f k8s/mcp_server/mcp-server.yaml
-          kubectl rollout restart deployment/${{ env.MCP_SERVER_DEPLOYMENT_NAME }}
           echo "✅ MCP Server deployment updated"
-
-      - name: Check deployment status
-        run: |
-          kubectl rollout status deployment/${{ env.MCP_SERVER_DEPLOYMENT_NAME }} --timeout=5m
           echo "## 🔧 MCP Server Deployment" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ **Status**: Deployed successfully" >> $GITHUB_STEP_SUMMARY
           echo "📦 **Image**: ${{ env.MCP_SERVER_IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
-          echo "🔗 **Service**: ${{ env.MCP_SERVER_SERVICE_NAME }}.gthomas59800-dev.svc.cluster.local:8000" >> $GITHUB_STEP_SUMMARY

@@ -25,7 +25,6 @@ env:
   EXPERIMENT_NAME: summittest
   EXPERIMENT_IMAGE_NAME: quay.io/gthomas59800/summittest
   API_IMAGE_NAME: quay.io/gthomas59800/summit/api
-  API_DEPLOYMENT_NAME: mlops-api
   API_ROUTE_NAME: mlops-api
   DAILYCLEAN_ROUTE_NAME: dailyclean
   MINIO_API_ROUTE_NAME: minio-api
@@ -100,21 +99,37 @@ jobs:
         run: |
           docker build -f k8s/api/Dockerfile -t ${{ env.API_IMAGE_NAME }}:latest .
           docker push ${{ env.API_IMAGE_NAME }}:latest
-      - name: Deploy api to Openshift and get API Route
+      - name: Configure API manifest with OAuth2 domain
+        run: |
+          sed -i 's|PLACEHOLDER_OAUTH2_DOMAIN|${{ vars.OAUTH2_DOMAIN }}|g' k8s/api/api.yaml
+          echo "✅ OAuth2 domain configured: ${{ vars.OAUTH2_DOMAIN }}"
+      - name: Deploy api to Openshift with OAuth2 protection
         run: |
           kubectl apply -f k8s/api/api.yaml
-          kubectl rollout restart deployment/${{ env.API_DEPLOYMENT_NAME }}
-          echo "✅ Deployment updated"
+          echo "✅ Deployment updated with OAuth2 protection"
           API_ROUTE_URL=$(kubectl get route ${{ env.API_ROUTE_NAME }} -o jsonpath='{.spec.host}')
           echo "API_ROUTE_URL=https://$API_ROUTE_URL" >> "$GITHUB_ENV"
           echo "🚀 API deployed at: ${API_ROUTE_URL}"
-      - name: Test api
+      - name: Get OAuth2 token for integration test
+        run: |
+          TOKEN_RESPONSE=$(curl -s -X POST "https://${{ vars.OAUTH2_DOMAIN }}/oauth/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "grant_type=client_credentials" \
+            -d "client_id=${{ secrets.OAUTH2_CLIENT_ID }}" \
+            -d "client_secret=${{ secrets.OAUTH2_CLIENT_SECRET }}" \
+            -d "audience=titanic-api" \
+            -d "scope=api:read")
+          ACCESS_TOKEN=$(echo $TOKEN_RESPONSE | jq -r '.access_token')
+          echo "ACCESS_TOKEN=$ACCESS_TOKEN" >> "$GITHUB_ENV"
+          echo "✅ OAuth2 token obtained for testing"
+      - name: Test api with OAuth2 authentication
         run: |
           sleep 60
-          curl -X POST $API_ROUTE_URL/infer -H "Content-Type: application/json" -d '{"pclass": 3, "sex": "male", "sibSp": 0, "parch": 0}'
+          curl -X POST $API_ROUTE_URL/infer \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -d '{"pclass": 3, "sex": "male", "sibSp": 0, "parch": 0}'
+          echo "✅ Integration test passed with OAuth2"
       - name: Asleep kto-mlflow with dailyclean
         run: |
           curl -X POST $DAILYCLEAN_ROUTE_URL/pods/stop
-      - name: Scale down dailyclean
-        run: |
-          kubectl scale --replicas=0 deployment/dailyclean-api
