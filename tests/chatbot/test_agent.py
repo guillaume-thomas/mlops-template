@@ -15,13 +15,11 @@ def agent():
 
 def test_agent_mcp_config_structure(agent):
     """Test que la configuration MCP a la bonne structure."""
-    assert agent.mcp_config is not None
-    assert "mcpServers" in agent.mcp_config
-    assert "titanic" in agent.mcp_config["mcpServers"]
+    assert agent.mcp_connections is not None
+    assert "titanic" in agent.mcp_connections
 
-    titanic_config = agent.mcp_config["mcpServers"]["titanic"]
+    titanic_config = agent.mcp_connections["titanic"]
     assert titanic_config["url"] == "http://localhost:8000/mcp"
-    assert titanic_config["transport"] == "streamable-http"
 
 
 def test_agent_llm_uses_correct_model(agent):
@@ -51,6 +49,6 @@ def test_agent_uses_environment_variables():
 
     agent = ChatbotAgent()
 
-    assert "http://custom-host:9000/mcp" in agent.mcp_config["mcpServers"]["titanic"]["url"]
+    assert "http://custom-host:9000/mcp" in agent.mcp_connections["titanic"]["url"]
 
     os.environ["MCP_SERVER_HOST"] = "http://localhost:8000"

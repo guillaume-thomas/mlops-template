@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/mcp_real
+      - feature/langchain-mcp
     paths:
       - 'src/summit/mcp_server/**'
       - '/tests/mcp_server/**'

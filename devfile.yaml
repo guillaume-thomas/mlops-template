@@ -1,0 +1,45 @@
+schemaVersion: 2.2.0
+metadata:
+  name: titanic-devspace
+  version: 1.0.0
+
+components:
+  - name: dev-container
+    container:
+      image: registry.redhat.io/devspaces/udi-rhel9:latest
+      memoryLimit: 4Gi
+      memoryRequest: 4Gi
+      cpuLimit: 200m
+      cpuRequest: 200m
+      mountSources: true
+      volumeMounts:
+        - name: uv-cache
+          path: /home/user/.cache/uv
+        - name: uv-installation
+          path: /home/user/.local/bin
+        - name: venv
+          path: /projects/mlops-template/.venv
+        - name: uv-share
+          path: /home/user/.local/share/uv
+      env:
+        - name: VIRTUAL_ENV
+          value: /projects/mlops-template/.venv
+        - name: UV_CACHE_DIR
+          value: /home/user/.cache/uv
+        - name: UV_PROJECT_ENVIRONMENT
+          value: /projects/mlops-template/.venv
+        - name: PATH
+          value: /projects/mlops-template/.venv/bin:/checode/checode-linux-libc/ubi9/bin/remote-cli:/home/user/.local/bin:/home/user/bin:/usr/share/Modules/bin:/home/user/.local/bin:/usr/bin:/home/user/go/bin:/home/tooling/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+  - name: uv-cache
+    volume:
+      size: 2Gi
+  - name: uv-installation
+    volume:
+      size: 2Gi
+  - name: venv
+    volume:
+      size: 2Gi
+  - name: uv-share
+    volume:
+      size: 2Gi
