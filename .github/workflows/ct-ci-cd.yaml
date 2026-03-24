@@ -8,6 +8,7 @@ on:
       - feature/monitoring
       - feature/mcp_real
       - feature/langchain-mcp
+      - feature/langchain-mcp-with-otel
     paths:
       - 'src/summit/api/**'
       - 'src/summit/training/**'

@@ -5,6 +5,7 @@ on:
     branches:
       - feature/mcp_real
       - feature/langchain-mcp
+      - feature/langchain-mcp-with-otel
     paths:
       - 'src/summit/chatbot/**'
       - '/tests/chatbot/**'
