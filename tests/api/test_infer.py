@@ -3,17 +3,11 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 import builtins
+import os
 
 
 mock_model = Mock()
 mock_model.predict.return_value = np.array([1])
-
-
-def mock_verify_factory(scope):
-    async def _verify(credentials=None):
-        return "mock-token"
-
-    return _verify
 
 
 original_open = builtins.open
@@ -31,7 +25,7 @@ def selective_mock_open(file, *args, **kwargs):
 with (
     patch("builtins.open", side_effect=selective_mock_open),
     patch("pickle.load", return_value=mock_model),
-    patch("summit.api.infer.verify_token", mock_verify_factory),
+    patch.dict(os.environ, {"OAUTH2_DOMAIN": ""}, clear=False),
 ):
     from summit.api.infer import app
 
@@ -48,8 +42,9 @@ def mock_infer_model():
 
 @pytest.fixture
 def client():
-    """Client de test."""
-    return TestClient(app)
+    """Client de test sans authentification OAuth2 (OAUTH2_DOMAIN non défini)."""
+    with patch.dict(os.environ, {"OAUTH2_DOMAIN": ""}, clear=False):
+        yield TestClient(app)
 
 
 def test_health_endpoint(client):
